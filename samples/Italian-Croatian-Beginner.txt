@@ -1,0 +1,35 @@
+Italian-Croatian
+# Lines starting with # are comments and are ignored.
+# First line MUST be 'language1-language2'.
+# Following lines: word-translation
+ciao-bok
+buongiorno-dobro jutro
+buonasera-dobra večer
+grazie-hvala
+prego-molim
+sì-da
+no-ne
+per favore-molim te
+acqua-voda
+pane-kruh
+vino-vino
+cane-pas
+gatto-mačka
+casa-kuća
+amico-prijatelj
+amica-prijateljica
+libro-knjiga
+tavolo-stol
+sedia-stolica
+porta-vrata
+finestra-prozor
+sole-sunce
+luna-mjesec
+stella-zvijezda
+mare-more
+montagna-planina
+città-grad
+strada-cesta
+oggi-danas
+domani-sutra
+ieri-jučer
