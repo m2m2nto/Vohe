@@ -5,13 +5,15 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
+    @Query(sort: \PausedSession.pausedAt, order: .reverse) private var paused: [PausedSession]
     @State private var showingImporter = false
     @State private var importError: String?
+    @State private var resumeTarget: PausedSession?
 
     var body: some View {
         NavigationStack {
             Group {
-                if decks.isEmpty {
+                if decks.isEmpty && paused.isEmpty {
                     ContentUnavailableView(
                         "No Decks Yet",
                         systemImage: "books.vertical",
@@ -19,12 +21,29 @@ struct LibraryView: View {
                     )
                 } else {
                     List {
-                        ForEach(decks) { deck in
-                            NavigationLink(value: deck) {
-                                DeckRow(deck: deck)
+                        if !paused.isEmpty {
+                            Section("In Progress") {
+                                ForEach(paused) { session in
+                                    Button {
+                                        resumeTarget = session
+                                    } label: {
+                                        PausedRow(session: session)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .onDelete(perform: deletePaused)
                             }
                         }
-                        .onDelete(perform: deleteDecks)
+                        if !decks.isEmpty {
+                            Section("Decks") {
+                                ForEach(decks) { deck in
+                                    NavigationLink(value: deck) {
+                                        DeckRow(deck: deck)
+                                    }
+                                }
+                                .onDelete(perform: deleteDecks)
+                            }
+                        }
                     }
                 }
             }
@@ -60,6 +79,16 @@ struct LibraryView: View {
             } message: {
                 Text(importError ?? "")
             }
+            .fullScreenCover(item: $resumeTarget) { session in
+                if let deck = session.deck {
+                    SessionView(
+                        deck: deck,
+                        inverted: session.inverted,
+                        wordCount: session.wordCount,
+                        resume: session
+                    )
+                }
+            }
         }
     }
 
@@ -90,6 +119,12 @@ struct LibraryView: View {
             context.delete(decks[idx])
         }
     }
+
+    private func deletePaused(at offsets: IndexSet) {
+        for idx in offsets {
+            context.delete(paused[idx])
+        }
+    }
 }
 
 private struct DeckRow: View {
@@ -113,5 +148,39 @@ private struct DeckRow: View {
             }
         }
         .padding(.vertical, 2)
+    }
+}
+
+private struct PausedRow: View {
+    let session: PausedSession
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(session.deck?.name ?? "Deleted deck")
+                    .font(.headline)
+                HStack(spacing: 8) {
+                    Text("\(session.currentIndex) / \(session.cardOrderIDs.count)")
+                        .monospacedDigit()
+                    Text("•")
+                    Text("✓ \(session.correct)")
+                        .monospacedDigit()
+                        .foregroundStyle(.green)
+                    if session.inverted {
+                        Text("•")
+                        Image(systemName: "arrow.left.arrow.right")
+                            .accessibilityLabel("Inverted")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "play.circle.fill")
+                .font(.title2)
+                .foregroundStyle(.tint)
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
     }
 }

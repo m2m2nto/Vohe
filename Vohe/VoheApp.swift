@@ -7,6 +7,6 @@ struct VoheApp: App {
         WindowGroup {
             LibraryView()
         }
-        .modelContainer(for: [Deck.self, Card.self, SessionResult.self])
+        .modelContainer(for: [Deck.self, Card.self, SessionResult.self, PausedSession.self])
     }
 }

@@ -15,6 +15,9 @@ final class Deck {
     @Relationship(deleteRule: .cascade, inverse: \SessionResult.deck)
     var sessions: [SessionResult] = []
 
+    @Relationship(deleteRule: .cascade, inverse: \PausedSession.deck)
+    var pausedSessions: [PausedSession] = []
+
     init(name: String, language1: String, language2: String) {
         self.id = UUID()
         self.name = name

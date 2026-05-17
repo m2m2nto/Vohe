@@ -6,6 +6,8 @@ struct SessionView: View {
     @Environment(\.modelContext) private var context
     let deck: Deck
     let inverted: Bool
+    let wordCount: Int
+    let resume: PausedSession?
 
     @State private var order: [Card] = []
     @State private var index = 0
@@ -13,6 +15,7 @@ struct SessionView: View {
     @State private var isFlipped = false
     @State private var dragOffset: CGSize = .zero
     @State private var showResults = false
+    @State private var showExitDialog = false
 
     var body: some View {
         VStack(spacing: 24) {
@@ -25,6 +28,11 @@ struct SessionView: View {
         .padding(20)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear(perform: buildOrder)
+        .confirmationDialog("Exit session?", isPresented: $showExitDialog, titleVisibility: .visible) {
+            Button("Pause") { pauseAndExit() }
+            Button("Discard", role: .destructive) { discardAndExit() }
+            Button("Keep going", role: .cancel) {}
+        }
         .fullScreenCover(isPresented: $showResults) {
             ResultsView(total: order.count, correct: correct) {
                 showResults = false
@@ -75,7 +83,7 @@ struct SessionView: View {
 
     private var header: some View {
         HStack {
-            Button("Cancel", role: .cancel) { dismiss() }
+            Button("Cancel", role: .cancel) { showExitDialog = true }
             Spacer()
             Text("\(min(index + 1, max(order.count, 1))) / \(order.count)")
                 .monospacedDigit()
@@ -116,11 +124,21 @@ struct SessionView: View {
 
     private func buildOrder() {
         guard order.isEmpty else { return }
-        let wrong = deck.cards.filter { $0.wrongLastSession }.shuffled()
-        let rest = deck.cards.filter { !$0.wrongLastSession }.shuffled()
-        order = wrong + rest
-        for card in deck.cards {
-            card.wrongLastSession = false
+        if let paused = resume {
+            var byID: [UUID: Card] = [:]
+            for card in deck.cards { byID[card.id] = card }
+            order = paused.cardOrderIDs.compactMap { byID[$0] }
+            index = min(paused.currentIndex, max(order.count - 1, 0))
+            correct = paused.correct
+        } else {
+            let wrong = deck.cards.filter { $0.wrongLastSession }.shuffled()
+            let rest = deck.cards.filter { !$0.wrongLastSession }.shuffled()
+            let combined = wrong + rest
+            let limit = wordCount == 0 ? combined.count : min(wordCount, combined.count)
+            order = Array(combined.prefix(limit))
+            for card in order {
+                card.wrongLastSession = false
+            }
         }
     }
 
@@ -139,12 +157,43 @@ struct SessionView: View {
                 let result = SessionResult(total: order.count, correct: correct, inverted: inverted)
                 result.deck = deck
                 context.insert(result)
+                if let paused = resume {
+                    context.delete(paused)
+                }
                 try? context.save()
                 showResults = true
             } else {
                 index += 1
             }
         }
+    }
+
+    private func pauseAndExit() {
+        if let paused = resume {
+            paused.currentIndex = index
+            paused.correct = correct
+            paused.pausedAt = .now
+        } else {
+            let paused = PausedSession(
+                cardOrderIDs: order.map { $0.id },
+                currentIndex: index,
+                correct: correct,
+                inverted: inverted,
+                wordCount: wordCount
+            )
+            paused.deck = deck
+            context.insert(paused)
+        }
+        try? context.save()
+        dismiss()
+    }
+
+    private func discardAndExit() {
+        if let paused = resume {
+            context.delete(paused)
+            try? context.save()
+        }
+        dismiss()
     }
 }
 
