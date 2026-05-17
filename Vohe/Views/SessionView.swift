@@ -13,6 +13,8 @@ struct SessionView: View {
     @State private var order: [Card] = []
     @State private var index = 0
     @State private var correct = 0
+    @State private var wrongIDs: [UUID] = []
+    @State private var startedAt: Date = .now
     @State private var isFlipped = false
     @State private var dragOffset: CGSize = .zero
     @State private var showResults = false
@@ -129,6 +131,8 @@ struct SessionView: View {
             order = paused.cardOrderIDs.compactMap { byID[$0] }
             index = min(paused.currentIndex, max(order.count - 1, 0))
             correct = paused.correct
+            wrongIDs = paused.wrongCardIDs
+            startedAt = paused.startedAt == .distantPast ? .now : paused.startedAt
         } else if onlyHardest {
             let store = DifficultyStore.shared
             let scored: [(Card, Double)] = deck.cards.compactMap { card in
@@ -156,7 +160,11 @@ struct SessionView: View {
     private func advance(wasCorrect: Bool) {
         let card = order[index]
         card.wrongLastSession = !wasCorrect
-        if wasCorrect { correct += 1 }
+        if wasCorrect {
+            correct += 1
+        } else {
+            wrongIDs.append(card.id)
+        }
         DifficultyStore.shared.recordAnswer(
             deckName: deck.name,
             front: card.front,
@@ -171,7 +179,13 @@ struct SessionView: View {
             dragOffset = .zero
             isFlipped = false
             if index + 1 >= order.count {
-                let result = SessionResult(total: order.count, correct: correct, inverted: inverted)
+                let result = SessionResult(
+                    total: order.count,
+                    correct: correct,
+                    inverted: inverted,
+                    startedAt: startedAt,
+                    wrongCardIDs: wrongIDs
+                )
                 result.deck = deck
                 context.insert(result)
                 if let paused = resume {
@@ -190,13 +204,17 @@ struct SessionView: View {
             paused.currentIndex = index
             paused.correct = correct
             paused.pausedAt = .now
+            paused.wrongCardIDs = wrongIDs
+            if paused.startedAt == .distantPast { paused.startedAt = startedAt }
         } else {
             let paused = PausedSession(
                 cardOrderIDs: order.map { $0.id },
                 currentIndex: index,
                 correct: correct,
                 inverted: inverted,
-                wordCount: wordCount
+                wordCount: wordCount,
+                startedAt: startedAt,
+                wrongCardIDs: wrongIDs
             )
             paused.deck = deck
             context.insert(paused)

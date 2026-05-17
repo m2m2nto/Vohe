@@ -39,9 +39,20 @@ struct DeckDetailView: View {
                 LabeledContent("Cards") {
                     Text("\(deck.cards.count)")
                 }
-                LabeledContent("Wrong last session") {
-                    Text("\(wrongCount)")
-                        .foregroundStyle(wrongCount > 0 ? .orange : .secondary)
+                if wrongCount > 0 {
+                    NavigationLink {
+                        WrongCardsView(deck: deck)
+                    } label: {
+                        LabeledContent("Wrong last session") {
+                            Text("\(wrongCount)")
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                } else {
+                    LabeledContent("Wrong last session") {
+                        Text("0")
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -87,18 +98,22 @@ struct DeckDetailView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(recentSessions) { session in
-                        HStack {
-                            Text(session.completedAt, format: .dateTime.month().day().hour().minute())
-                            Spacer()
-                            if session.inverted {
-                                Image(systemName: "arrow.left.arrow.right")
-                                    .foregroundStyle(.secondary)
-                                    .accessibilityLabel("Inverted session")
+                        NavigationLink {
+                            SessionDetailView(session: session)
+                        } label: {
+                            HStack {
+                                Text(session.completedAt, format: .dateTime.month().day().hour().minute())
+                                Spacer()
+                                if session.inverted {
+                                    Image(systemName: "arrow.left.arrow.right")
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityLabel("Inverted session")
+                                }
+                                Text("\(session.correct)/\(session.total)")
+                                    .monospacedDigit()
                             }
-                            Text("\(session.correct)/\(session.total)")
-                                .monospacedDigit()
+                            .font(.callout)
                         }
-                        .font(.callout)
                     }
                 }
             }

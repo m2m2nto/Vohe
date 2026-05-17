@@ -10,6 +10,8 @@ final class PausedSession {
     var inverted: Bool
     var wordCount: Int
     var pausedAt: Date
+    var startedAt: Date = Date.distantPast
+    var wrongCardIDs: [UUID] = []
     var deck: Deck?
 
     init(
@@ -17,7 +19,9 @@ final class PausedSession {
         currentIndex: Int,
         correct: Int,
         inverted: Bool,
-        wordCount: Int
+        wordCount: Int,
+        startedAt: Date,
+        wrongCardIDs: [UUID]
     ) {
         self.id = UUID()
         self.cardOrderIDs = cardOrderIDs
@@ -26,5 +30,7 @@ final class PausedSession {
         self.inverted = inverted
         self.wordCount = wordCount
         self.pausedAt = .now
+        self.startedAt = startedAt
+        self.wrongCardIDs = wrongCardIDs
     }
 }
