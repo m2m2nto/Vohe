@@ -7,11 +7,15 @@ struct LibraryView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
     @Query(sort: \PausedSession.pausedAt, order: .reverse) private var paused: [PausedSession]
-    @AppStorage(ReminderScheduler.userDefaultsKey) private var remindersEnabled = false
+    @State private var reminderSettings: ReminderSettings = ReminderSettings.load()
+    @State private var router = NotificationRouter.shared
     @State private var showingImporter = false
     @State private var importError: String?
     @State private var resumeTarget: PausedSession?
+    @State private var quickSessionDeck: Deck?
     @State private var showingReminderSettings = false
+
+    private static let pausedCap = 5
 
     var body: some View {
         NavigationStack {
@@ -59,7 +63,7 @@ struct LibraryView: View {
                     Button {
                         showingReminderSettings = true
                     } label: {
-                        Image(systemName: remindersEnabled ? "bell.fill" : "bell")
+                        Image(systemName: reminderSettings.enabled ? "bell.fill" : "bell")
                     }
                     .accessibilityLabel("Reminder settings")
                 }
@@ -73,13 +77,20 @@ struct LibraryView: View {
                 }
             }
             .sheet(isPresented: $showingReminderSettings) {
-                ReminderSettingsSheet(remindersEnabled: $remindersEnabled)
+                ReminderSettingsSheet(settings: $reminderSettings)
             }
-            .onAppear { Task { await refreshReminders() } }
+            .onAppear {
+                Task { await refreshReminders() }
+                handleQuickSessionRequest()
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await refreshReminders() } }
             }
-            .onChange(of: remindersEnabled) { _, _ in
+            .onChange(of: router.quickSessionRequested) { _, _ in
+                handleQuickSessionRequest()
+            }
+            .onChange(of: reminderSettings) { _, new in
+                ReminderSettings.save(new)
                 Task { await refreshReminders() }
             }
             .fileImporter(
@@ -99,6 +110,15 @@ struct LibraryView: View {
                 Button("OK", role: .cancel) { importError = nil }
             } message: {
                 Text(importError ?? "")
+            }
+            .fullScreenCover(item: $quickSessionDeck) { deck in
+                SessionView(
+                    deck: deck,
+                    inverted: false,
+                    wordCount: 5,
+                    onlyHardest: false,
+                    resume: nil
+                )
             }
             .fullScreenCover(item: $resumeTarget) { session in
                 if let deck = session.deck {
@@ -149,11 +169,30 @@ struct LibraryView: View {
     }
 
     private func refreshReminders() async {
-        guard remindersEnabled else {
+        guard reminderSettings.enabled else {
             ReminderScheduler.cancelAll()
             return
         }
-        await ReminderScheduler.reschedule(lastPracticedAt: lastSessionDate())
+        await ReminderScheduler.reschedule(settings: reminderSettings, lastPracticedAt: lastSessionDate())
+    }
+
+    private func handleQuickSessionRequest() {
+        guard router.quickSessionRequested else { return }
+        router.quickSessionRequested = false
+        guard paused.count < Self.pausedCap else { return }
+        guard let deck = lastPracticedDeck(), !deck.cards.isEmpty else { return }
+        quickSessionDeck = deck
+    }
+
+    private func lastPracticedDeck() -> Deck? {
+        var descriptor = FetchDescriptor<SessionResult>(
+            sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        if let last = try? context.fetch(descriptor).first, let deck = last.deck {
+            return deck
+        }
+        return decks.first
     }
 
     private func lastSessionDate() -> Date? {
@@ -166,7 +205,7 @@ struct LibraryView: View {
 }
 
 private struct ReminderSettingsSheet: View {
-    @Binding var remindersEnabled: Bool
+    @Binding var settings: ReminderSettings
     @Environment(\.dismiss) private var dismiss
     @State private var permissionDenied = false
 
@@ -174,10 +213,29 @@ private struct ReminderSettingsSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Daily reminders", isOn: $remindersEnabled)
+                    Toggle("Daily reminders", isOn: $settings.enabled)
                 } footer: {
-                    Text("Two gentle reminders per day at random times — one mid-morning, one in the evening. Days you've already practiced are skipped.")
+                    Text("Days you've already practiced are skipped automatically.")
                 }
+
+                if settings.enabled {
+                    Section {
+                        Picker("Schedule", selection: $settings.mode) {
+                            Text("Random").tag(ReminderSettings.Mode.random)
+                            Text("Exact").tag(ReminderSettings.Mode.exact)
+                        }
+                        .pickerStyle(.segmented)
+                    } header: {
+                        Text("Schedule")
+                    }
+
+                    if settings.mode == .random {
+                        randomSection
+                    } else {
+                        exactSection
+                    }
+                }
+
                 if permissionDenied {
                     Section {
                         Text("Notifications are disabled for Vohe. Enable them in iOS Settings to receive reminders.")
@@ -193,7 +251,7 @@ private struct ReminderSettingsSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .onChange(of: remindersEnabled) { _, enabled in
+            .onChange(of: settings.enabled) { _, enabled in
                 guard enabled else {
                     permissionDenied = false
                     return
@@ -202,7 +260,7 @@ private struct ReminderSettingsSheet: View {
                     let granted = await ReminderScheduler.requestAuthorization()
                     await MainActor.run {
                         if !granted {
-                            remindersEnabled = false
+                            settings.enabled = false
                             permissionDenied = true
                         } else {
                             permissionDenied = false
@@ -211,6 +269,83 @@ private struct ReminderSettingsSheet: View {
                 }
             }
         }
+    }
+
+    private var randomSection: some View {
+        Section {
+            Stepper(
+                "Notifications per day: \(settings.count)",
+                value: $settings.count,
+                in: ReminderSettings.countRange
+            )
+            HStack {
+                Text("From")
+                Spacer()
+                MinuteIntervalDatePicker(date: bindingForMinutes($settings.windowStartMinutes))
+            }
+            HStack {
+                Text("To")
+                Spacer()
+                MinuteIntervalDatePicker(date: bindingForMinutes($settings.windowEndMinutes))
+            }
+        } header: {
+            Text("Random window")
+        } footer: {
+            Text("Times are randomized each day inside this window.")
+        }
+    }
+
+    private var exactSection: some View {
+        Section {
+            ForEach(Array(settings.exactTimesMinutes.enumerated()), id: \.offset) { idx, _ in
+                HStack {
+                    Text("Time \(idx + 1)")
+                    Spacer()
+                    MinuteIntervalDatePicker(date: bindingForMinutes(timeBinding(at: idx)))
+                }
+            }
+            .onDelete { offsets in
+                settings.exactTimesMinutes.remove(atOffsets: offsets)
+                if settings.exactTimesMinutes.isEmpty {
+                    settings.exactTimesMinutes = [9 * 60]
+                }
+            }
+            if settings.exactTimesMinutes.count < ReminderSettings.countRange.upperBound {
+                Button {
+                    settings.exactTimesMinutes.append(12 * 60)
+                } label: {
+                    Label("Add Time", systemImage: "plus.circle.fill")
+                }
+            }
+        } header: {
+            Text("Exact times (\(settings.exactTimesMinutes.count))")
+        } footer: {
+            Text("Up to \(ReminderSettings.countRange.upperBound) fixed times per day. Swipe a row to delete.")
+        }
+    }
+
+    private func timeBinding(at index: Int) -> Binding<Int> {
+        Binding(
+            get: { settings.exactTimesMinutes[index] },
+            set: { settings.exactTimesMinutes[index] = $0 }
+        )
+    }
+
+    private func bindingForMinutes(_ m: Binding<Int>) -> Binding<Date> {
+        Binding(
+            get: { Self.date(fromMinutes: m.wrappedValue) },
+            set: { m.wrappedValue = Self.minutes(from: $0) }
+        )
+    }
+
+    private static func date(fromMinutes m: Int) -> Date {
+        Calendar.current.date(bySettingHour: m / 60, minute: m % 60, second: 0, of: Date()) ?? Date()
+    }
+
+    private static func minutes(from d: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+        let raw = (c.hour ?? 0) * 60 + (c.minute ?? 0)
+        return (raw / 5) * 5
     }
 }
 
