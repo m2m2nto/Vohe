@@ -17,7 +17,7 @@ Personal iOS app to memorize vocabulary in new languages via flashcards. Install
 - App Store distribution.
 
 ## Tech Stack
-- **Platform:** iOS 17+
+- **Platform:** iOS 26+
 - **UI:** SwiftUI
 - **Persistence:** SwiftData
 - **File import:** SwiftUI `.fileImporter` modifier (UTType `.plainText` and `.text`)
