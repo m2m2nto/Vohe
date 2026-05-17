@@ -3,12 +3,15 @@ import SwiftData
 
 struct DeckDetailView: View {
     @Bindable var deck: Deck
+    @Environment(\.modelContext) private var context
     @Query private var allPaused: [PausedSession]
     @State private var inverted = false
     @State private var wordCount: Int = 20
     @State private var sessionActive = false
     @State private var hardestActive = false
     @State private var showCapAlert = false
+    @State private var addingCard = false
+    @State private var fileError: String?
 
     static let wordCountOptions: [(label: String, value: Int)] = [
         ("5", 5), ("20", 20), ("50", 50), ("100", 100), ("All", 0)
@@ -36,8 +39,12 @@ struct DeckDetailView: View {
                 LabeledContent("Language pair") {
                     Text("\(deck.language1) → \(deck.language2)")
                 }
-                LabeledContent("Cards") {
-                    Text("\(deck.cards.count)")
+                NavigationLink {
+                    CardsListView(deck: deck)
+                } label: {
+                    LabeledContent("Cards") {
+                        Text("\(deck.cards.count)")
+                    }
                 }
                 if wrongCount > 0 {
                     NavigationLink {
@@ -120,6 +127,26 @@ struct DeckDetailView: View {
         }
         .navigationTitle(deck.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { addingCard = true } label: { Image(systemName: "plus") }
+                    .accessibilityLabel("Add card")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                ShareLink(item: DeckFileStore.url(for: deck)) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .accessibilityLabel("Export deck file")
+            }
+        }
+        .onAppear {
+            try? DeckFileStore.writeIfMissing(deck)
+        }
+        .sheet(isPresented: $addingCard) {
+            CardEditorSheet(deck: deck, mode: .add) { front, back in
+                addCard(front: front, back: back)
+            }
+        }
         .fullScreenCover(isPresented: $sessionActive) {
             SessionView(deck: deck, inverted: inverted, wordCount: wordCount, onlyHardest: false, resume: nil)
         }
@@ -130,6 +157,29 @@ struct DeckDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("You have \(Self.pausedCap) paused sessions. Resume or discard one from the Library to start a new one.")
+        }
+        .alert(
+            "Couldn't Update File",
+            isPresented: Binding(
+                get: { fileError != nil },
+                set: { if !$0 { fileError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { fileError = nil }
+        } message: {
+            Text(fileError ?? "")
+        }
+    }
+
+    private func addCard(front: String, back: String) {
+        let card = Card(front: front, back: back)
+        card.deck = deck
+        context.insert(card)
+        try? context.save()
+        do {
+            try DeckFileStore.write(deck)
+        } catch {
+            fileError = error.localizedDescription
         }
     }
 }

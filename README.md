@@ -29,6 +29,7 @@ That's the whole loop. Open the app, swipe a handful, close it. Tomorrow, same.
 ## Features
 
 - **Plain-text decks**, manually editable, easy to back up or share.
+- **In-app card editing**: add, edit, or delete cards from a deck. Changes are mirrored to a per-deck file in `Documents/Decks/<deck>.txt` (visible in the Files app), and a Share button on the deck exports it back to iCloud Drive or anywhere else.
 - **Custom session sizes**: 5 / 20 / 50 / 100 / All.
 - **Inverted mode** to drill the other direction (target → source).
 - **Pause & resume** up to 5 in-progress sessions.

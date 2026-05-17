@@ -151,6 +151,7 @@ struct LibraryView: View {
                 context.insert(card)
             }
             try context.save()
+            try? DeckFileStore.write(deck)
         } catch {
             importError = error.localizedDescription
         }
@@ -158,7 +159,9 @@ struct LibraryView: View {
 
     private func deleteDecks(at offsets: IndexSet) {
         for idx in offsets {
-            context.delete(decks[idx])
+            let deck = decks[idx]
+            DeckFileStore.remove(deck)
+            context.delete(deck)
         }
     }
 

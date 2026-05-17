@@ -44,6 +44,20 @@ final class DifficultyStore {
         cache[Self.key(deckName: deckName, front: front, back: back)]
     }
 
+    func remove(deckName: String, front: String, back: String) {
+        let k = Self.key(deckName: deckName, front: front, back: back)
+        guard cache.removeValue(forKey: k) != nil else { return }
+        persist()
+    }
+
+    func rename(deckName: String, oldFront: String, oldBack: String, newFront: String, newBack: String) {
+        let oldKey = Self.key(deckName: deckName, front: oldFront, back: oldBack)
+        let newKey = Self.key(deckName: deckName, front: newFront, back: newBack)
+        guard oldKey != newKey, let stats = cache.removeValue(forKey: oldKey) else { return }
+        cache[newKey] = stats
+        persist()
+    }
+
     /// Returns wrong-rate when the card has been seen enough times; nil otherwise.
     func difficultyScore(deckName: String, front: String, back: String) -> Double? {
         guard let s = stats(deckName: deckName, front: front, back: back),
