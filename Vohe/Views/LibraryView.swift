@@ -4,11 +4,14 @@ import UniformTypeIdentifiers
 
 struct LibraryView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
     @Query(sort: \PausedSession.pausedAt, order: .reverse) private var paused: [PausedSession]
+    @AppStorage(ReminderScheduler.userDefaultsKey) private var remindersEnabled = false
     @State private var showingImporter = false
     @State private var importError: String?
     @State private var resumeTarget: PausedSession?
+    @State private var showingReminderSettings = false
 
     var body: some View {
         NavigationStack {
@@ -52,6 +55,14 @@ struct LibraryView: View {
                 DeckDetailView(deck: deck)
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingReminderSettings = true
+                    } label: {
+                        Image(systemName: remindersEnabled ? "bell.fill" : "bell")
+                    }
+                    .accessibilityLabel("Reminder settings")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingImporter = true
@@ -60,6 +71,16 @@ struct LibraryView: View {
                     }
                     .accessibilityLabel("Import deck")
                 }
+            }
+            .sheet(isPresented: $showingReminderSettings) {
+                ReminderSettingsSheet(remindersEnabled: $remindersEnabled)
+            }
+            .onAppear { Task { await refreshReminders() } }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await refreshReminders() } }
+            }
+            .onChange(of: remindersEnabled) { _, _ in
+                Task { await refreshReminders() }
             }
             .fileImporter(
                 isPresented: $showingImporter,
@@ -85,6 +106,7 @@ struct LibraryView: View {
                         deck: deck,
                         inverted: session.inverted,
                         wordCount: session.wordCount,
+                        onlyHardest: false,
                         resume: session
                     )
                 }
@@ -123,6 +145,71 @@ struct LibraryView: View {
     private func deletePaused(at offsets: IndexSet) {
         for idx in offsets {
             context.delete(paused[idx])
+        }
+    }
+
+    private func refreshReminders() async {
+        guard remindersEnabled else {
+            ReminderScheduler.cancelAll()
+            return
+        }
+        await ReminderScheduler.reschedule(lastPracticedAt: lastSessionDate())
+    }
+
+    private func lastSessionDate() -> Date? {
+        var descriptor = FetchDescriptor<SessionResult>(
+            sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first?.completedAt
+    }
+}
+
+private struct ReminderSettingsSheet: View {
+    @Binding var remindersEnabled: Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var permissionDenied = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Toggle("Daily reminders", isOn: $remindersEnabled)
+                } footer: {
+                    Text("Two gentle reminders per day at random times — one mid-morning, one in the evening. Days you've already practiced are skipped.")
+                }
+                if permissionDenied {
+                    Section {
+                        Text("Notifications are disabled for Vohe. Enable them in iOS Settings to receive reminders.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("Reminders")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .onChange(of: remindersEnabled) { _, enabled in
+                guard enabled else {
+                    permissionDenied = false
+                    return
+                }
+                Task {
+                    let granted = await ReminderScheduler.requestAuthorization()
+                    await MainActor.run {
+                        if !granted {
+                            remindersEnabled = false
+                            permissionDenied = true
+                        } else {
+                            permissionDenied = false
+                        }
+                    }
+                }
+            }
         }
     }
 }

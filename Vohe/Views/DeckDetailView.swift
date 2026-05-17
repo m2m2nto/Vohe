@@ -5,14 +5,22 @@ struct DeckDetailView: View {
     @Bindable var deck: Deck
     @Query private var allPaused: [PausedSession]
     @State private var inverted = false
-    @State private var wordCount: Int = 0
+    @State private var wordCount: Int = 20
     @State private var sessionActive = false
+    @State private var hardestActive = false
     @State private var showCapAlert = false
 
     static let wordCountOptions: [(label: String, value: Int)] = [
-        ("20", 20), ("50", 50), ("100", 100), ("200", 200), ("All", 0)
+        ("5", 5), ("20", 20), ("50", 50), ("100", 100), ("All", 0)
     ]
     static let pausedCap = 5
+
+    private var rankableCount: Int {
+        DifficultyStore.shared.rankableCount(
+            deckName: deck.name,
+            fronts: deck.cards.map { ($0.front, $0.back) }
+        )
+    }
 
     private var wrongCount: Int {
         deck.cards.filter { $0.wrongLastSession }.count
@@ -37,7 +45,7 @@ struct DeckDetailView: View {
                 }
             }
 
-            Section("Session") {
+            Section {
                 Picker("Words", selection: $wordCount) {
                     ForEach(Self.wordCountOptions, id: \.value) { option in
                         Text(option.label).tag(option.value)
@@ -55,6 +63,22 @@ struct DeckDetailView: View {
                     Label("Start Session", systemImage: "play.fill")
                 }
                 .disabled(deck.cards.isEmpty)
+                Button {
+                    if allPaused.count >= Self.pausedCap {
+                        showCapAlert = true
+                    } else {
+                        hardestActive = true
+                    }
+                } label: {
+                    Label("Practice Hardest", systemImage: "flame.fill")
+                }
+                .disabled(rankableCount < DifficultyStore.minSeenForRanking)
+            } header: {
+                Text("Session")
+            } footer: {
+                if rankableCount < DifficultyStore.minSeenForRanking {
+                    Text("Practice Hardest unlocks once you've seen at least \(DifficultyStore.minSeenForRanking) cards three or more times.")
+                }
             }
 
             Section("Recent Results") {
@@ -82,7 +106,10 @@ struct DeckDetailView: View {
         .navigationTitle(deck.name)
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(isPresented: $sessionActive) {
-            SessionView(deck: deck, inverted: inverted, wordCount: wordCount, resume: nil)
+            SessionView(deck: deck, inverted: inverted, wordCount: wordCount, onlyHardest: false, resume: nil)
+        }
+        .fullScreenCover(isPresented: $hardestActive) {
+            SessionView(deck: deck, inverted: inverted, wordCount: wordCount, onlyHardest: true, resume: nil)
         }
         .alert("Too Many Paused Sessions", isPresented: $showCapAlert) {
             Button("OK", role: .cancel) {}

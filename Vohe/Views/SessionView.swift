@@ -7,6 +7,7 @@ struct SessionView: View {
     let deck: Deck
     let inverted: Bool
     let wordCount: Int
+    let onlyHardest: Bool
     let resume: PausedSession?
 
     @State private var order: [Card] = []
@@ -58,10 +59,8 @@ struct SessionView: View {
                 feedbackBadge(text: "CORRECT", color: .green, visible: dragOffset.width > 20)
             }
             .onTapGesture {
-                if !isFlipped {
-                    withAnimation(.spring(duration: 0.35)) {
-                        isFlipped = true
-                    }
+                withAnimation(.spring(duration: 0.35)) {
+                    isFlipped.toggle()
                 }
             }
             .gesture(swipeGesture)
@@ -130,6 +129,18 @@ struct SessionView: View {
             order = paused.cardOrderIDs.compactMap { byID[$0] }
             index = min(paused.currentIndex, max(order.count - 1, 0))
             correct = paused.correct
+        } else if onlyHardest {
+            let store = DifficultyStore.shared
+            let scored: [(Card, Double)] = deck.cards.compactMap { card in
+                guard let score = store.difficultyScore(deckName: deck.name, front: card.front, back: card.back), score > 0 else { return nil }
+                return (card, score)
+            }
+            let sorted = scored.sorted { $0.1 > $1.1 }.map(\.0)
+            let limit = wordCount == 0 ? sorted.count : min(wordCount, sorted.count)
+            order = Array(sorted.prefix(limit))
+            for card in order {
+                card.wrongLastSession = false
+            }
         } else {
             let wrong = deck.cards.filter { $0.wrongLastSession }.shuffled()
             let rest = deck.cards.filter { !$0.wrongLastSession }.shuffled()
@@ -146,6 +157,12 @@ struct SessionView: View {
         let card = order[index]
         card.wrongLastSession = !wasCorrect
         if wasCorrect { correct += 1 }
+        DifficultyStore.shared.recordAnswer(
+            deckName: deck.name,
+            front: card.front,
+            back: card.back,
+            wasCorrect: wasCorrect
+        )
 
         withAnimation(.easeOut(duration: 0.25)) {
             dragOffset = CGSize(width: wasCorrect ? 600 : -600, height: 0)
