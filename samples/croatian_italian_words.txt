@@ -1,0 +1,746 @@
+crvena - rosso
+plava - blu
+zelena - verde
+žuta - giallo
+narančasta - arancione
+ljubičasta - viola
+ružičasta - rosa
+smeđa - marrone
+crna - nero
+bijela - bianco
+siva - grigio
+tirkizna - turchese
+zlatan - oro
+srebrna - argento
+bež - beige
+domaća zadaća - compiti
+zadaća - compiti
+nadati se - sperare
+lagan - facile/leggero
+jezik - lingua
+oženjen - sposato
+provoditelj - conduttore
+debeo - grosso/grasso
+navijati - tifare
+cijelo - tutto/intero
+glagola - verbo
+odgajati - educare/allevare
+množina - plurale
+jednina - singolare
+policajac - poliziotto
+poštar - postino
+slon - elefante
+skup - caro/costoso
+jeftin - economico
+mlad - giovane
+star - vecchio
+nebo - cielo
+skakati - saltare
+trava - erba
+učenik - alunno/studente
+točka - punto
+umirovljenik - pensionato
+menadžer - manager
+država - stato
+
+neljubazan - scortese/scontroso
+osmijeh - sorriso
+trener - allenatore
+novinarka - giornalista
+sastanak - riunione/meeting
+liječnik - medico
+ispit - esame
+bilježnica - quaderno
+umjetnik - artista
+slikar - pittore
+pozivnica - invito
+izložba - mostra
+zdenac - pozzo
+vrt - giardino
+susjed - vicino
+marljiv - diligente
+lijen - pigro
+blag - mite
+strog - severo
+pametan - intelligente/sveglio
+glup - stupido
+ljubazan - gentile
+prezime - cognome
+ime - nome
+točno - corretto/giusto
+netočno - sbagliato
+težak - difficile/pesante
+sladak - dolce
+ukusni - gustoso/saporito
+mala/malena - piccola
+ugodan - piacevole
+pitanja - domanda
+ovo - questo (vicino a chi parla)
+to - questo (vicino a chi ascolta)
+ono - quello
+tako-tako - cosi-cosi
+početi - parlare (una storia)
+govoriti - parlare (una lingua)
+cvijet - fiore
+sporo - lentamente
+veza - collegamento/legame
+također - anche
+šah - scacchi
+džem - marmellata
+odličan - eccellente
+grozan - orribile
+sretan - felice
+nesretan - infelice
+tužan - triste
+veseo - allegro
+dobar - buono
+loš - cattivo
+tepih/tepisi - tappeto/tappeti
+češljevi - pettini
+vojnik - soldato
+umjetnik - artista
+liječnik - dottore/medico
+rođak - cugino
+nizak - basso
+brzak - snello/sbrigato
+otac - padre
+poznanik - conoscente
+roditelj - genitore
+supruga - signora
+supruga - signora
+suprug - signore
+loš - cattivo
+peć - forno
+četka - spazzola
+mač - spada
+stranica - pagina
+gumica - gomma
+šiljilo - temperino
+kemijska olovka - penna
+vježbenica - quaderno degli esercizi
+prsten - anello (corregge: papir - carta)
+papir - carta
+motor - motore
+žaba - rana
+zastava - bandiera
+šalica - tazza
+stol - tavolo
+ljuljačka - altalena
+haljina - vestito (femminile)
+dumbic - margherita (zazero?)
+džep - tasca
+namjena - scopo/destinazione
+događaj - evento
+javiti - avvisare/comunicare
+prijedlog - proposta
+most - ponte
+sljedeće - prossimo/seguente
+zanimati - interesirati
+obitelj - parentela
+ljeto - estate
+povijest - storia
+udana - sposata
+prezime - cognome
+ordinacija - ambulatorio
+razgovarati - conversare/parlare
+izaberite - scegliete
+pozvati - invitare/chiamare
+članak - articolo
+jelo - piatto/cibo
+kolica - carrozzina
+vlak - treno
+brod - nave/barca
+podmornica - sottomarino
+piće - bevanda
+djeca - bambini
+pozivati - invitare
+uljez - intruso
+iza - dietro
+tuš - doccia
+vrt - giardino
+konj - cavallo
+putnik - viaggiatore
+zanimljiv - interessante
+kamo - dove (direzione - andare)
+gdje - dove (direzione - fermo)
+kakav - di tipo di/come
+jer/zato što - perchè
+zato - perciò/per questo
+tržnica - mercato
+ured - ufficio
+predstava - spettacolo
+izlet - gita
+sastanak - meeting
+bazen - piscina
+zatvoren - chiuso
+otvoren - aperto
+slastičarna - pasticceria
+knjižara - libreria
+predstava - spettacolo
+Beč - Vienna
+klokan - canguro
+ponekad - a volte
+novine - giornale
+vic/vicevi - barzelletta
+zadatak - compiti
+zabava/tulum - festa
+omiljen - preferito
+stupac - colonna
+knjižara - libreria
+knjižica - libretto
+kupovina - acquisto/spesa
+šuma - foresta
+koš - cestino
+košarka - pallacanestro
+trgovkinja - commessa
+prodavačica - commessa (negozio)
+glumica - attrice
+učionica - aula/classe
+flomaster - evidenziatore
+učiteljica - maestra
+nebo - cielo
+šuma - foresta
+posjet - visita
+pozivati - invitare
+bilježnica - quaderno
+tržnica - mercato
+trgovina - negozio
+ponedjeljak - lunedì
+utorak - martedì
+srijeda - mercoledì
+četvrtak - giovedì
+petak - venerdì
+subota - sabato
+nedjelja - domenica
+predavanja - lezione
+stol - tavolo
+šalica - tazza
+zastava - bandiera
+žaba - rana
+stranica - pagina
+veza - relazione, legame
+ču, čja, čje - di chi
+moj(a)(e) - mio
+tvoj(a)(e) - tuo
+njegov(a)(o) - suo (m.)
+njezin(a)(o) - suo (f.)
+naš(a)(e) - nostro
+vaš(a)(e) - vostro
+njihov(a)(o) - loro
+muški - maschile
+ženski - femminile
+srednji - neutro
+godin(u)(e)(a) - anno
+crkva - chiesa
+bolnica - ospedale
+dvorana - sala
+voće - frutta
+po - per
+obično - di solito
+pecivo - bagle (panino)
+postići - paggio "picoli"
+stanka - breve pausa
+tada - allora
+utakmica - partita
+priroda - natura
+tjedan - settimana
+mjesec - mese
+poslijepodne - pomeriggio
+popodne - pomeriggio
+prijepodne - tarda mattina
+prekosutra - dopodomani
+prekjučer - l'altroieri
+ponoć - mezzanotte
+navečer - questa sera
+rijetko - raramente
+kasnije - più tardi
+kasno - tardi
+lak - facile
+doručkovati - fare colazione
+pišem - scrivo
+hodam/šetam - cammino
+ostati - stare/restare alzati
+smiti se - ridere
+pjati - lavare
+perem - io lavo
+uvijek - sempre
+često - spesso
+prekjed - a volte
+sličan - simile
+jednak/isti - uguale
+opet - di nuovo
+podne - mezzogiorno
+ranije - più presto
+rano - presto
+sastanak - meeting
+družim se - frequento
+danju - durante il giorno
+disati (dišem) - respirare
+suđe - piatti, stoviglie
+glačati - stirare
+spomenik - monumento
+umjetnik - artista
+lonac - pentola
+obožavatelj - fan
+dvorište - cortile
+zaposlena - impegnata
+provoditi - svolgere
+težak - lažan, casio
+nastavi - integramento
+završi - finisce/termina
+vodim - portare per le mani
+katkada - a volte
+posjet - visita
+obično - di solito
+vratiti se - ritornare
+krevet - letto
+utakmica - partita
+poduzetnik - imprenditore
+častiti - offrire
+cvijeće - fiore
+ured - ufficio
+sljedeći - prossimo
+preko - durante/oltre
+voli - vuoi
+odijelo - abito
+ljutiti se - arrabbiarsi
+praviti - fare
+slaviti - celebrare
+štedjeti - risparmiare
+slagati se - essere d'accordo
+svadba - festa di matrimonio
+spor - lento
+svako - ogni
+odjeća - vestiti
+strašno - davvero
+iz - da
+tamno - scuro
+svijetlo - chiaro
+pre ozbiljno - troppo serioso
+ozbiljno - serio
+bez - senza
+boja - colore
+broj - numero
+veličina - taglia
+savršeno - perfetto
+obući - indossare
+cijena - prezzo
+povoljno - conveniente
+udoban - comodo
+sivo - grigio
+blagajna - cassa
+kupac - acquirente
+svakodnevno - ogni giorno
+majica - maglia
+hlače - pantaloni
+traperice - jeans
+kratke hlače - pantaloncini
+suknja - gonna
+kratka suknja - minigonna
+haljina - vestito
+tunika - tunica
+džemper - maglione
+dolčevita - dolcevita
+vesta - cardigan
+kupaći kostim - costume (femm)
+kupaće gaće - costume (maschi)
+košulja - camicia
+odijelo - abito
+bluza - blusa (blusa)
+kostim - abito (femm)
+jakna - giacca a vento
+kaput - cappotto
+čarape - calzini
+najlonke - calze
+tajice - leggings
+šal - sciarpa
+rukavice - guanti
+kapa - cappello
+trenirka - tuta
+dres - maglia sportiva
+prsluk - gilet smanicato
+pidžama - pigiama
+gaće/gaćica - mutande
+bokserice - boxer
+grudnjak - reggiseno
+potkošulja - canottiera
+marama - bandana
+kravata - cravatta
+šešir - cappello
+remen - cinta
+sunčane naočale - occhiali da sole
+sitnice - bagatto
+leptir-mašna - farfallino
+ručni sat - orologio
+cipele - scarpe
+čizme - stivali
+sandale - sandali
+japanke - infradito
+štikle - scarpe con tacco
+balerinke - ballerine
+tenisice - scarpe da tennis
+papuče - ciabatte
+torba - borsa
+ruksak - zaino
+kofer - valigia
+kolica za kupovinu - carello
+ogrlica - collana girocollo
+naušnice - orecchini
+prsten - anello
+narukvica - braccialetto
+lančić - collana
+ostalo - altro
+ponovo - di nuovo
+zapitati - domandare
+najradije - preferibilmente
+davno - tanto tempo fa
+uporna - ostinata
+onako - cosi
+razmisliti - pensarci
+smijati se - sorridere
+usvojiti - fare proprio
+reći - dire
+dignuti - alzarsi
+odbiti - rifiutare
+pozvati - invitare
+neodlučna - indecisa
+zabrinuti se - preoccuparsi
+poželjeti - desiderare
+gunđati - brontolare
+vopće - del tutto/in generale
+ticati se - preoccuparsi
+zmije - serpenti
+suvenirnica - negozio souvenir
+zaključci - conclusioni
+dignise - alzarsi
+tjera - insistente
+ustajanje - alzarsi
+promašiti - fallire
+kroz - attraverso
+buljiti - fissare
+iznimka - eccezione
+skitati - vagare
+mrmljati - brontolare
+pristanti - prepararsi (?)
+zijevnuti - sbadigliare
+morž - tricheco
+vući se - trascinarsi
+pak - quindi/di nuovo/ma
+zamisliti se - immaginarsi
+izlazak - uscita
+nego - piuttosto
+provesti - passare/portare avanti
+dalje - avanti
+pozvoniti - suonare (il campanello)
+uzbuđena - eccitata
+dovesti - trasportare
+mučiti - tormentare
+gluposti - sciocchezze
+jednostavnije - più semplice
+nasmijati se - sorridere
+jedva - appena
+porasti - crescere
+položiti - passare/posizionare
+šetnja - passeggio
+uzbudljiva - emozionante
+pogotovo - soprattutto
+gužva - folla/ingorgo
+zamoliti - chiedere
+vozač - autista
+pružiti - estendere
+dići - alzare
+izlog - vetrine
+poznati - conoscere
+dio - parte/porzione
+nabaviti - acquistare
+ovuda - per di qua
+porasti - crescere
+promet - traffico
+inače - altrimenti/di solito
+prilično - abbastanza
+opasno - pericoloso
+jedva - appena
+bojati - temere
+dometnuti - aggiungere
+tuđe - altrui
+sjever - nord
+jug - sud
+istok - est
+zapad - ovest
+skrivena - nascosta
+sniježna - nevosa
+staza - sentiero
+patuljci - nani
+nasmijanih - sorridenti
+lica - volti/facce
+dovršavati - finire
+popravak - riparazione
+sanjica - slitta
+budno - vigile/attento
+čarobne - magiche
+sjati - splendere
+mnogo - molto
+stati - fermare
+sob/sobovi - renna/e
+valja - valere
+napokon - finalmente
+dugačka - lunga
+obići - visitare
+svijet - mondo
+ostaviti - lasciare
+osvjetljavati - illuminare
+mjesec - mese/luna
+dok - mentre/finché
+posvuda - ovunque
+vlada - governo
+dijeliti - dividere
+dimnjak - camino
+sići - scendere
+otići - partire
+donositi - portare
+veselje - gioia
+sitnica - inezia
+osati - illuminare
+majušne - minuscole
+zbilja - davvero
+vrlo - molto
+znatiželjni - curiosi
+proljeće - primavera
+odgajati - crescere, educare (figli)
+marljiv - diligente
+ukusni - gustosi
+ukusan - gustoso
+družim se - frequento
+družiti se - frequentare
+ugodan - piacevole, bello
+štedjeti - risparmiare
+preko - attraverso, oltre
+spomenik - monumento
+poznanik - conoscente
+lonac - pentola
+spor - lento
+poklopac - coperchio
+obožavatelji - fans
+obično - di solito
+tada - allora
+ostati - alzarsi
+sličan - simile
+jednak - uguale
+odjeća - vestiti
+namjena - scopo
+namijenjenahamjena - scopo
+nastaviti se - continuare
+rano - presto
+događati se - accadere
+blagajna - cassa
+tajice - leggings
+prijedlog - proposta
+vratiti se - tornare
+čizme - stivali
+pozivati - invitare
+sljedeće - prossimo
+zanimati se - interessarsi
+srebrna - argento
+povijest - storia
+svijet - mondo
+uloga - ruolo
+knjižara - libreria
+izabrati - scegliere
+pratiti - preparare
+slaviti - festeggiare
+lagan - leggero
+srednji - neutro
+uljez - intruso
+slagati - mettere in ordine
+država - stato
+zanimljiv - interessante
+trgovkinja - commessa
+traperice - jeans
+sladak - dolce
+nizak - basso
+lančić - collana
+neljubazan - maleducato
+omiljen - preferito
+savršeno - perfetto/perfettamente
+rješenje - soluzione
+stupac - colonna
+obući - vestirsi
+prodavačica - commessa
+popust - sconto
+vježbenica - quaderno esercizi
+povoljan - conveniente
+trenutak - momento
+uvjete - condizioni
+pozivati - invitare
+ubosti - pungere
+kupac - acquirente
+tržnica - mercato
+svjež - fresco (verdura)
+strog - severo
+predstava - spettacolo
+početi - iniziare
+pozivnica - invito
+javiti - avvisare
+stići - arrivare
+pošten - onesto
+graditi - costruire
+idući - prossima
+priča - storia, racconto
+kraj - fine
+rad(ovi) - lavoro(i)
+naručiti - ordinare (fare ordine)
+odgovor - risposta
+rješavanje - risoluzione
+početak - inizio
+provjeriti - controllare
+rečenica - frase
+korak - passo
+dopustimi - permettimi
+čudan - strano
+zvuk - rumore
+posjed - proprietà
+pronaći - trovare
+sniženje - sconto
+ponijeti - portare con sé
+umjesto - al posto di
+počinjati - iniziare
+nastava - lezione
+procvilice - violetti di Brussel
+kućnog ljubimca - animale domestico
+član - membro
+žedan - assetato
+ustati - alzarsi
+prati - lavare
+vratiti se - tornare
+stanovati - abitare
+obična voda - acqua liscia
+provoditi - spendere
+napraviti - fare/preparare
+zadatak - compito
+košulja - camicia
+sreća - fortuna
+odijevanja - abbigliamento
+pokazati - mostrare
+izloga - vetrina
+nažalost - purtroppo
+trenutačno - al momento
+sljedeći - prossimo
+ljetne - estive
+pogriješiti - sbagliare
+se nalaziti - trovarsi
+izabrati - scegliere
+odlučiti - decidere
+koliko stoji - quanto costa
+brojati - contare
+nabrojati - elencare
+obilježje - caratteristica
+najčešće - più spesso
+putovati - viaggiare
+podstanar - coinquilino
+san - sonno
+pokazati - mostrare
+sresti - incontrare
+dijeliti - condividere
+ukrati - rubare
+duša - anima
+htjeti - volere
+sjajno - fantastico
+jedva - a malapena
+raspoloženje - umore
+poslovna - viaggio di lavoro
+šteta! - peccato!
+jelovnik - menu
+nakon - dopo
+naručiti - ordinare (al ristoranti)
+predjelo - antipasto
+glavno jelo - piatto principale
+pržen - fritto
+puran - tacchino
+preporučiti - consigliare
+orah - noce
+različite - diverse
+začinjena - speziata
+posuditi - prendere in prestito
+zabranjeno - vietato
+ući - entrare
+izaći - uscire
+promet - traffico
+zaustaviti - fermarsi
+voditi - portare
+ptica - uccello
+muka - rapa (femminino)
+položiti - superare (esame)
+obavezno - sicuramente/obbligatorio
+odijeća - vestito
+pogrešno - sbagliato
+dobiti - ricevere
+nažalost - purtroppo
+nazvati - chiamare
+pokušati - provare
+očito - ovviamente
+krivi - sbagliato
+napokon - finalmente
+što ima? - come va?
+posebno - particolarmente
+provjeriti - controllare
+stići - fare in tempo
+se naći - trovarsi
+ipak - comunque
+odustati - rinunciare
+držim - tenere
+figa - dita incrociate
+držim ti fige - tengo le dita incrociate
+dogovoreno - d'accordo
+dopuniti - riempire
+započeti - iniziare
+dovršiti - completare
+ljetovati - passare le vacanze estive
+zimovati - passare le vacanze invernali
+polica - mensola
+rječnik - dizionario
+stablo - albero
+zanimanja - professioni
+konobar - cameriere
+prodavač - commesso/venditore
+zanimati - interessare
+upisati - inserire
+umetnuti - inserire
+glagol - verbo
+zamjenica - pronome
+prilog - avverbio
+prijedlog - preposizione
+lovac - cacciatore
+dječaci - ragazzi/bambini maschi
+djevojčice - ragazze/bambine
+mladići - adolescenti
+zgrada - edificio/costruzione
+vrt - giardino
+visok - alto
+nizak - basso
+odijelo - vestito
+udoban - comodo
+kratka - corta
+dosadno - noioso
+odličan - eccellente
+dugačak - lungo
+jednostav - semplice
+smiješno - divertente
+zreo/zrela - maturo/a
+debeo - grosso/spello
+zao/zla - cattivo/a
+buka - rumore/chiasso
+hitno - urgentemente
+brdo - colina
+predstava - spettacolo
+kolodvor - stazione
+dopuniti - completare
+umjetno - artificiale
+sladilo - dolcificante
+šipak - rosa canina/melograno
+ostatak - resto
+važno - importante
+sitno - spiccioli
+slaviti - festeggiare
+trpjeti - sopportare
+predavanja - lezione
+natjecanje - gara
