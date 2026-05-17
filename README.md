@@ -2,6 +2,8 @@
 
 A small iOS flashcard app for learning vocabulary the slow, daily way.
 
+The name is short for **Vo**cabulary **He**lper.
+
 ## Why
 
 I believe learning a new language is mostly about repeating words **daily, in small bites, over a long time**. Cramming 200 words in a Sunday session is forgotten by Wednesday. Five words every day at 9:00 and 18:00, for a year, is a vocabulary.
