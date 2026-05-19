@@ -84,9 +84,15 @@ struct LibraryView: View {
                 handleQuickSessionRequest()
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { Task { await refreshReminders() } }
+                if phase == .active {
+                    Task { await refreshReminders() }
+                    handleQuickSessionRequest()
+                }
             }
             .onChange(of: router.quickSessionRequested) { _, _ in
+                handleQuickSessionRequest()
+            }
+            .onChange(of: decks.count) { _, _ in
                 handleQuickSessionRequest()
             }
             .onChange(of: reminderSettings) { _, new in
@@ -181,9 +187,14 @@ struct LibraryView: View {
 
     private func handleQuickSessionRequest() {
         guard router.quickSessionRequested else { return }
+        guard paused.count < Self.pausedCap else {
+            router.quickSessionRequested = false
+            return
+        }
+        guard let deck = lastPracticedDeck(), !deck.cards.isEmpty else {
+            return
+        }
         router.quickSessionRequested = false
-        guard paused.count < Self.pausedCap else { return }
-        guard let deck = lastPracticedDeck(), !deck.cards.isEmpty else { return }
         quickSessionDeck = deck
     }
 
