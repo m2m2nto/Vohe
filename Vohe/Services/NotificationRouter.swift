@@ -22,12 +22,16 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        defer { completionHandler() }
         let id = response.notification.request.identifier
         guard id.hasPrefix(Self.reminderIdentifierPrefix) else { return }
         guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else { return }
-        await MainActor.run { NotificationRouter.shared.quickSessionRequested = true }
+        DispatchQueue.main.async {
+            NotificationRouter.shared.quickSessionRequested = true
+        }
     }
 }
 
