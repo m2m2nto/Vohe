@@ -19,6 +19,8 @@ struct SessionView: View {
     @State private var dragOffset: CGSize = .zero
     @State private var showResults = false
     @State private var showExitDialog = false
+    @State private var editingCard: Card?
+    @State private var fileError: String?
 
     var body: some View {
         VStack(spacing: 24) {
@@ -41,6 +43,22 @@ struct SessionView: View {
                 showResults = false
                 dismiss()
             }
+        }
+        .sheet(item: $editingCard) { card in
+            CardEditorSheet(deck: deck, mode: .edit(card)) { front, back in
+                updateCard(card, front: front, back: back)
+            }
+        }
+        .alert(
+            "Couldn't Update File",
+            isPresented: Binding(
+                get: { fileError != nil },
+                set: { if !$0 { fileError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { fileError = nil }
+        } message: {
+            Text(fileError ?? "")
         }
     }
 
@@ -94,6 +112,14 @@ struct SessionView: View {
                 .monospacedDigit()
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.green)
+            Button {
+                guard index < order.count else { return }
+                editingCard = order[index]
+            } label: {
+                Image(systemName: "pencil")
+            }
+            .accessibilityLabel("Edit card")
+            .disabled(index >= order.count)
         }
     }
 
@@ -229,6 +255,25 @@ struct SessionView: View {
             try? context.save()
         }
         dismiss()
+    }
+
+    private func updateCard(_ card: Card, front: String, back: String) {
+        let oldFront = card.front
+        let oldBack = card.back
+        guard oldFront != front || oldBack != back else { return }
+        card.front = front
+        card.back = back
+        try? context.save()
+        DifficultyStore.shared.rename(
+            deckName: deck.name,
+            oldFront: oldFront, oldBack: oldBack,
+            newFront: front, newBack: back
+        )
+        do {
+            try DeckFileStore.write(deck)
+        } catch {
+            fileError = error.localizedDescription
+        }
     }
 }
 
