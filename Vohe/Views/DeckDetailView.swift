@@ -5,6 +5,7 @@ struct DeckDetailView: View {
     @Bindable var deck: Deck
     @Environment(\.modelContext) private var context
     @Query private var allPaused: [PausedSession]
+    @Query private var allDecks: [Deck]
     @State private var inverted = false
     @State private var wordCount: Int = 20
     @State private var sessionActive = false
@@ -12,6 +13,8 @@ struct DeckDetailView: View {
     @State private var showCapAlert = false
     @State private var addingCard = false
     @State private var fileError: String?
+    @State private var renaming = false
+    @State private var renameText = ""
 
     static let wordCountOptions: [(label: String, value: Int)] = [
         ("5", 5), ("20", 20), ("50", 50), ("100", 100), ("All", 0)
@@ -36,6 +39,16 @@ struct DeckDetailView: View {
     var body: some View {
         Form {
             Section("Deck") {
+                Button {
+                    renameText = deck.name
+                    renaming = true
+                } label: {
+                    LabeledContent("Name") {
+                        Text(deck.name)
+                            .foregroundStyle(.tint)
+                    }
+                }
+                .buttonStyle(.plain)
                 LabeledContent("Language pair") {
                     Text("\(deck.language1) → \(deck.language2)")
                 }
@@ -168,6 +181,42 @@ struct DeckDetailView: View {
             Button("OK", role: .cancel) { fileError = nil }
         } message: {
             Text(fileError ?? "")
+        }
+        .alert("Rename Deck", isPresented: $renaming) {
+            TextField("Deck name", text: $renameText)
+                .autocorrectionDisabled()
+            Button("Cancel", role: .cancel) {}
+            Button("Save") { renameDeck() }
+                .disabled(renameInvalid)
+        } message: {
+            Text(nameIsTaken ? "Another deck already uses that name." : "Enter a new name for this deck.")
+        }
+    }
+
+    private var trimmedRenameText: String {
+        renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var nameIsTaken: Bool {
+        let name = trimmedRenameText
+        return !name.isEmpty && allDecks.contains { $0.id != deck.id && $0.name == name }
+    }
+
+    private var renameInvalid: Bool {
+        trimmedRenameText.isEmpty || nameIsTaken
+    }
+
+    private func renameDeck() {
+        let newName = trimmedRenameText
+        let oldName = deck.name
+        guard !newName.isEmpty, newName != oldName, !nameIsTaken else { return }
+        deck.name = newName
+        try? context.save()
+        DifficultyStore.shared.renameDeck(from: oldName, to: newName)
+        do {
+            try DeckFileStore.rename(deck, from: oldName)
+        } catch {
+            fileError = error.localizedDescription
         }
     }
 

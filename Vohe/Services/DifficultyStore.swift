@@ -58,6 +58,20 @@ final class DifficultyStore {
         persist()
     }
 
+    /// Migrates every card stat from `oldName` to `newName` after a deck rename.
+    func renameDeck(from oldName: String, to newName: String) {
+        guard oldName != newName else { return }
+        let prefix = "\(oldName)\u{1F}"
+        let staleKeys = cache.keys.filter { $0.hasPrefix(prefix) }
+        guard !staleKeys.isEmpty else { return }
+        for key in staleKeys {
+            guard let stats = cache.removeValue(forKey: key) else { continue }
+            let suffix = key.dropFirst(prefix.count)
+            cache["\(newName)\u{1F}\(suffix)"] = stats
+        }
+        persist()
+    }
+
     /// Returns wrong-rate when the card has been seen enough times; nil otherwise.
     func difficultyScore(deckName: String, front: String, back: String) -> Double? {
         guard let s = stats(deckName: deckName, front: front, back: back),

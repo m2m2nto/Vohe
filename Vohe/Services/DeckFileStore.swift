@@ -36,6 +36,16 @@ enum DeckFileStore {
         remove(deckNamed: deck.name)
     }
 
+    /// Rewrites the mirror file under the deck's current name and deletes the
+    /// stale file from `oldName` (skipped when both sanitize to the same path).
+    static func rename(_ deck: Deck, from oldName: String) throws {
+        try write(deck)
+        let oldURL = url(forDeckNamed: oldName)
+        if oldURL != url(for: deck) {
+            try? FileManager.default.removeItem(at: oldURL)
+        }
+    }
+
     private static func ensureDirectory() throws {
         try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
     }
