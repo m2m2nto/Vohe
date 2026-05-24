@@ -88,6 +88,7 @@ struct DeckDetailView: View {
                     if allPaused.count >= Self.pausedCap {
                         showCapAlert = true
                     } else {
+                        UserDefaults.standard.set(wordCount, forKey: "vohe.lastSlotSize")
                         sessionActive = true
                     }
                 } label: {
@@ -98,6 +99,7 @@ struct DeckDetailView: View {
                     if allPaused.count >= Self.pausedCap {
                         showCapAlert = true
                     } else {
+                        UserDefaults.standard.set(wordCount, forKey: "vohe.lastSlotSize")
                         hardestActive = true
                     }
                 } label: {

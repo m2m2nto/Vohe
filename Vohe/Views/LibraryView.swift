@@ -7,6 +7,7 @@ struct LibraryView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
     @Query(sort: \PausedSession.pausedAt, order: .reverse) private var paused: [PausedSession]
+    @Query private var allCards: [Card]
     @State private var reminderSettings: ReminderSettings = ReminderSettings.load()
     @State private var router = NotificationRouter.shared
     @State private var showingImporter = false
@@ -14,6 +15,24 @@ struct LibraryView: View {
     @State private var resumeTarget: PausedSession?
     @State private var quickSessionDeck: Deck?
     @State private var showingReminderSettings = false
+    @State private var globalReviewActive = false
+
+    private var dueCards: [Card] {
+        let calendar = Calendar.current
+        let tomorrowStart = calendar.date(
+            byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())
+        ) ?? Date()
+        return allCards
+            .filter { $0.boxIndex >= 1 && $0.nextDue < tomorrowStart }
+            .shuffled()
+            .sorted { $0.nextDue < $1.nextDue }
+    }
+
+    private var dueCount: Int { dueCards.count }
+
+    private var reviewRowLabel: String {
+        dueCount > 100 ? "Review" : "Review (\(dueCount) due)"
+    }
 
     private static let pausedCap = 5
 
@@ -28,6 +47,24 @@ struct LibraryView: View {
                     )
                 } else {
                     List {
+                        if dueCount > 0 {
+                            Section {
+                                Button {
+                                    globalReviewActive = true
+                                } label: {
+                                    HStack {
+                                        Label(reviewRowLabel, systemImage: "tray.fill")
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(.tertiary)
+                                            .font(.caption)
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                         if !paused.isEmpty {
                             Section("In Progress") {
                                 ForEach(paused) { session in
@@ -125,6 +162,10 @@ struct LibraryView: View {
                     onlyHardest: false,
                     resume: nil
                 )
+            }
+            .fullScreenCover(isPresented: $globalReviewActive) {
+                let stored = UserDefaults.standard.object(forKey: "vohe.lastSlotSize") as? Int
+                SessionView(globalCards: dueCards, wordCount: stored ?? 20)
             }
             .fullScreenCover(item: $resumeTarget) { session in
                 if let deck = session.deck {

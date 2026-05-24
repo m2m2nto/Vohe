@@ -1,5 +1,7 @@
 # Vohe — Vocabulary Flashcard App (Spec)
 
+> **Superseded sections:** The "Session Logic" section below and the "Spaced repetition algorithm" line under "Out of Scope (v1)" are superseded by [`docs/specs/spaced-repetition-leitner.md`](docs/specs/spaced-repetition-leitner.md). The rest of this v1 spec still holds.
+
 ## Goal
 Personal iOS app to memorize vocabulary in new languages via flashcards. Installed directly via Xcode (no App Store).
 

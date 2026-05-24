@@ -2,13 +2,44 @@ import SwiftUI
 import SwiftData
 
 struct SessionView: View {
+    enum Mode {
+        case perDeck(Deck)
+        case global([Card])
+    }
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
-    let deck: Deck
+    let mode: Mode
     let inverted: Bool
     let wordCount: Int
     let onlyHardest: Bool
     let resume: PausedSession?
+
+    init(deck: Deck, inverted: Bool, wordCount: Int, onlyHardest: Bool, resume: PausedSession?) {
+        self.mode = .perDeck(deck)
+        self.inverted = inverted
+        self.wordCount = wordCount
+        self.onlyHardest = onlyHardest
+        self.resume = resume
+    }
+
+    init(globalCards: [Card], wordCount: Int) {
+        self.mode = .global(globalCards)
+        self.inverted = false
+        self.wordCount = wordCount
+        self.onlyHardest = false
+        self.resume = nil
+    }
+
+    private var deck: Deck? {
+        if case .perDeck(let d) = mode { return d }
+        return nil
+    }
+
+    private var isGlobal: Bool {
+        if case .global = mode { return true }
+        return false
+    }
 
     @State private var order: [Card] = []
     @State private var index = 0
@@ -19,8 +50,12 @@ struct SessionView: View {
     @State private var dragOffset: CGSize = .zero
     @State private var showResults = false
     @State private var showExitDialog = false
+    @State private var againCountThisSession: [UUID: Int] = [:]
+    @State private var gradedThisSession: Set<UUID> = []
     @State private var editingCard: Card?
     @State private var fileError: String?
+
+    private static let reinforcementCap = 2
 
     var body: some View {
         VStack(spacing: 24) {
@@ -34,7 +69,9 @@ struct SessionView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear(perform: buildOrder)
         .confirmationDialog("Exit session?", isPresented: $showExitDialog, titleVisibility: .visible) {
-            Button("Pause") { pauseAndExit() }
+            if !isGlobal {
+                Button("Pause") { pauseAndExit() }
+            }
             Button("Discard", role: .destructive) { discardAndExit() }
             Button("Keep going", role: .cancel) {}
         }
@@ -45,8 +82,10 @@ struct SessionView: View {
             }
         }
         .sheet(item: $editingCard) { card in
-            CardEditorSheet(deck: deck, mode: .edit(card)) { front, back in
-                updateCard(card, front: front, back: back)
+            if let cardDeck = card.deck {
+                CardEditorSheet(deck: cardDeck, mode: .edit(card)) { front, back in
+                    updateCard(card, front: front, back: back)
+                }
             }
         }
         .alert(
@@ -151,7 +190,7 @@ struct SessionView: View {
 
     private func buildOrder() {
         guard order.isEmpty else { return }
-        if let paused = resume {
+        if let paused = resume, let deck = deck {
             var byID: [UUID: Card] = [:]
             for card in deck.cards { byID[card.id] = card }
             order = paused.cardOrderIDs.compactMap { byID[$0] }
@@ -159,7 +198,11 @@ struct SessionView: View {
             correct = paused.correct
             wrongIDs = paused.wrongCardIDs
             startedAt = paused.startedAt == .distantPast ? .now : paused.startedAt
-        } else if onlyHardest {
+        } else if case .global(let cards) = mode {
+            // Caller supplies the sorted-by-overdueness list; just truncate.
+            let limit = wordCount == 0 ? cards.count : min(wordCount, cards.count)
+            order = Array(cards.prefix(limit))
+        } else if let deck = deck, onlyHardest {
             let store = DifficultyStore.shared
             let scored: [(Card, Double)] = deck.cards.compactMap { card in
                 guard let score = store.difficultyScore(deckName: deck.name, front: card.front, back: card.back), score > 0 else { return nil }
@@ -171,10 +214,21 @@ struct SessionView: View {
             for card in order {
                 card.wrongLastSession = false
             }
-        } else {
-            let wrong = deck.cards.filter { $0.wrongLastSession }.shuffled()
-            let rest = deck.cards.filter { !$0.wrongLastSession }.shuffled()
-            let combined = wrong + rest
+        } else if let deck = deck {
+            let now = Date.now
+            let calendar = Calendar.current
+            let tomorrowStart = calendar.date(
+                byAdding: .day, value: 1, to: calendar.startOfDay(for: now)
+            ) ?? now
+
+            let new = deck.cards.filter { $0.boxIndex == 0 }
+            let scheduled = deck.cards.filter { $0.boxIndex >= 1 }
+            let due = scheduled.filter { $0.nextDue < tomorrowStart }
+            let undue = scheduled.filter { $0.nextDue >= tomorrowStart }
+
+            // Shuffle first so ties on nextDue stay randomized; ascending sort puts most-overdue first.
+            let dueSorted = due.shuffled().sorted { $0.nextDue < $1.nextDue }
+            let combined = dueSorted + new.shuffled() + undue.shuffled()
             let limit = wordCount == 0 ? combined.count : min(wordCount, combined.count)
             order = Array(combined.prefix(limit))
             for card in order {
@@ -186,17 +240,40 @@ struct SessionView: View {
     private func advance(wasCorrect: Bool) {
         let card = order[index]
         card.wrongLastSession = !wasCorrect
+
+        // Box/due is written exactly once per card per session — on the first grade.
+        // Re-queued cards' subsequent grades only record DifficultyStore stats.
+        if !gradedThisSession.contains(card.id) {
+            let (box, due) = LeitnerScheduler.apply(
+                grade: wasCorrect ? .good : .again,
+                currentBox: card.boxIndex
+            )
+            card.boxIndex = box
+            card.nextDue = due
+            gradedThisSession.insert(card.id)
+        }
+
         if wasCorrect {
             correct += 1
-        } else {
+        } else if !wrongIDs.contains(card.id) {
             wrongIDs.append(card.id)
         }
         DifficultyStore.shared.recordAnswer(
-            deckName: deck.name,
+            deckName: card.deck?.name ?? "",
             front: card.front,
             back: card.back,
             wasCorrect: wasCorrect
         )
+        try? context.save()
+
+        // Within-session reinforcement: re-queue an Again card up to `reinforcementCap` extra times.
+        if !wasCorrect {
+            let extras = againCountThisSession[card.id, default: 0]
+            if extras < Self.reinforcementCap {
+                order.append(card)
+                againCountThisSession[card.id] = extras + 1
+            }
+        }
 
         withAnimation(.easeOut(duration: 0.25)) {
             dragOffset = CGSize(width: wasCorrect ? 600 : -600, height: 0)
@@ -205,19 +282,21 @@ struct SessionView: View {
             dragOffset = .zero
             isFlipped = false
             if index + 1 >= order.count {
-                let result = SessionResult(
-                    total: order.count,
-                    correct: correct,
-                    inverted: inverted,
-                    startedAt: startedAt,
-                    wrongCardIDs: wrongIDs
-                )
-                result.deck = deck
-                context.insert(result)
-                if let paused = resume {
-                    context.delete(paused)
+                if !isGlobal {
+                    let result = SessionResult(
+                        total: order.count,
+                        correct: correct,
+                        inverted: inverted,
+                        startedAt: startedAt,
+                        wrongCardIDs: wrongIDs
+                    )
+                    result.deck = deck
+                    context.insert(result)
+                    if let paused = resume {
+                        context.delete(paused)
+                    }
+                    try? context.save()
                 }
-                try? context.save()
                 showResults = true
             } else {
                 index += 1
@@ -226,6 +305,7 @@ struct SessionView: View {
     }
 
     private func pauseAndExit() {
+        guard let deck = deck else { dismiss(); return }
         if let paused = resume {
             paused.currentIndex = index
             paused.correct = correct
@@ -264,13 +344,14 @@ struct SessionView: View {
         card.front = front
         card.back = back
         try? context.save()
+        guard let cardDeck = card.deck else { return }
         DifficultyStore.shared.rename(
-            deckName: deck.name,
+            deckName: cardDeck.name,
             oldFront: oldFront, oldBack: oldBack,
             newFront: front, newBack: back
         )
         do {
-            try DeckFileStore.write(deck)
+            try DeckFileStore.write(cardDeck)
         } catch {
             fileError = error.localizedDescription
         }
