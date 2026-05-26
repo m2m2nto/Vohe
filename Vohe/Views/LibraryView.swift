@@ -12,10 +12,22 @@ struct LibraryView: View {
     @State private var router = NotificationRouter.shared
     @State private var showingImporter = false
     @State private var importError: String?
-    @State private var resumeTarget: PausedSession?
-    @State private var quickSessionDeck: Deck?
     @State private var showingReminderSettings = false
-    @State private var globalReviewActive = false
+    @State private var activeSession: ActiveSession?
+
+    private enum ActiveSession: Identifiable {
+        case quickDeck(Deck)
+        case resume(PausedSession)
+        case globalReview
+
+        var id: String {
+            switch self {
+            case .quickDeck(let d): return "deck-\(d.id.uuidString)"
+            case .resume(let p): return "resume-\(p.id.uuidString)"
+            case .globalReview: return "global"
+            }
+        }
+    }
 
     private var dueCards: [Card] {
         let calendar = Calendar.current
@@ -50,7 +62,7 @@ struct LibraryView: View {
                         if dueCount > 0 {
                             Section {
                                 Button {
-                                    globalReviewActive = true
+                                    activeSession = .globalReview
                                 } label: {
                                     HStack {
                                         Label(reviewRowLabel, systemImage: "tray.fill")
@@ -69,7 +81,7 @@ struct LibraryView: View {
                             Section("In Progress") {
                                 ForEach(paused) { session in
                                     Button {
-                                        resumeTarget = session
+                                        activeSession = .resume(session)
                                     } label: {
                                         PausedRow(session: session)
                                     }
@@ -154,28 +166,29 @@ struct LibraryView: View {
             } message: {
                 Text(importError ?? "")
             }
-            .fullScreenCover(item: $quickSessionDeck) { deck in
-                SessionView(
-                    deck: deck,
-                    inverted: false,
-                    wordCount: 5,
-                    onlyHardest: false,
-                    resume: nil
-                )
-            }
-            .fullScreenCover(isPresented: $globalReviewActive) {
-                let stored = UserDefaults.standard.object(forKey: "vohe.lastSlotSize") as? Int
-                SessionView(globalCards: dueCards, wordCount: stored ?? 20)
-            }
-            .fullScreenCover(item: $resumeTarget) { session in
-                if let deck = session.deck {
+            .fullScreenCover(item: $activeSession) { session in
+                switch session {
+                case .quickDeck(let deck):
                     SessionView(
                         deck: deck,
-                        inverted: session.inverted,
-                        wordCount: session.wordCount,
+                        inverted: false,
+                        wordCount: 5,
                         onlyHardest: false,
-                        resume: session
+                        resume: nil
                     )
+                case .resume(let paused):
+                    if let deck = paused.deck {
+                        SessionView(
+                            deck: deck,
+                            inverted: paused.inverted,
+                            wordCount: paused.wordCount,
+                            onlyHardest: false,
+                            resume: paused
+                        )
+                    }
+                case .globalReview:
+                    let stored = UserDefaults.standard.object(forKey: "vohe.lastSlotSize") as? Int
+                    SessionView(globalCards: dueCards, wordCount: stored ?? 20)
                 }
             }
         }
@@ -236,7 +249,7 @@ struct LibraryView: View {
             return
         }
         router.quickSessionRequested = false
-        quickSessionDeck = deck
+        activeSession = .quickDeck(deck)
     }
 
     private func lastPracticedDeck() -> Deck? {
