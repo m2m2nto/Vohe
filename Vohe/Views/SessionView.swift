@@ -9,6 +9,7 @@ struct SessionView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Query private var allPaused: [PausedSession]
     let mode: Mode
     let inverted: Bool
     let wordCount: Int
@@ -41,12 +42,19 @@ struct SessionView: View {
         return false
     }
 
+    // A session that is already a resume can always re-pause; new sessions
+    // can pause only while there's room under the cap.
+    private var canPause: Bool {
+        resume != nil || allPaused.count < PausedSession.cap
+    }
+
     @State private var order: [Card] = []
     @State private var index = 0
     @State private var correct = 0
     @State private var wrongIDs: [UUID] = []
     @State private var startedAt: Date = .now
     @State private var isFlipped = false
+    @State private var isTransitioning = false
     @State private var dragOffset: CGSize = .zero
     @State private var showResults = false
     @State private var showExitDialog = false
@@ -69,7 +77,7 @@ struct SessionView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear(perform: buildOrder)
         .confirmationDialog("Exit session?", isPresented: $showExitDialog, titleVisibility: .visible) {
-            if !isGlobal {
+            if !isGlobal && canPause {
                 Button("Pause") { pauseAndExit() }
             }
             Button("Discard", role: .destructive) { discardAndExit() }
@@ -172,11 +180,11 @@ struct SessionView: View {
     private var swipeGesture: some Gesture {
         DragGesture()
             .onChanged { value in
-                guard isFlipped else { return }
+                guard isFlipped, !isTransitioning else { return }
                 dragOffset = value.translation
             }
             .onEnded { value in
-                guard isFlipped else { return }
+                guard isFlipped, !isTransitioning else { return }
                 let threshold: CGFloat = 100
                 if value.translation.width > threshold {
                     advance(wasCorrect: true)
@@ -197,6 +205,8 @@ struct SessionView: View {
             index = min(paused.currentIndex, max(order.count - 1, 0))
             correct = paused.correct
             wrongIDs = paused.wrongCardIDs
+            gradedThisSession = Set(paused.gradedCardIDs)
+            againCountThisSession = paused.againCounts
             startedAt = paused.startedAt == .distantPast ? .now : paused.startedAt
         } else if case .global(let cards) = mode {
             // Caller supplies the sorted-by-overdueness list; just truncate.
@@ -211,9 +221,6 @@ struct SessionView: View {
             let sorted = scored.sorted { $0.1 > $1.1 }.map(\.0)
             let limit = wordCount == 0 ? sorted.count : min(wordCount, sorted.count)
             order = Array(sorted.prefix(limit))
-            for card in order {
-                card.wrongLastSession = false
-            }
         } else if let deck = deck {
             let now = Date.now
             let calendar = Calendar.current
@@ -231,13 +238,12 @@ struct SessionView: View {
             let combined = dueSorted + new.shuffled() + undue.shuffled()
             let limit = wordCount == 0 ? combined.count : min(wordCount, combined.count)
             order = Array(combined.prefix(limit))
-            for card in order {
-                card.wrongLastSession = false
-            }
         }
     }
 
     private func advance(wasCorrect: Bool) {
+        guard !isTransitioning else { return }
+        isTransitioning = true
         let card = order[index]
         card.wrongLastSession = !wasCorrect
 
@@ -281,6 +287,7 @@ struct SessionView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             dragOffset = .zero
             isFlipped = false
+            isTransitioning = false
             if index + 1 >= order.count {
                 if !isGlobal {
                     let result = SessionResult(
@@ -307,10 +314,13 @@ struct SessionView: View {
     private func pauseAndExit() {
         guard let deck = deck else { dismiss(); return }
         if let paused = resume {
+            paused.cardOrderIDs = order.map { $0.id }
             paused.currentIndex = index
             paused.correct = correct
             paused.pausedAt = .now
             paused.wrongCardIDs = wrongIDs
+            paused.gradedCardIDs = Array(gradedThisSession)
+            paused.againCounts = againCountThisSession
             if paused.startedAt == .distantPast { paused.startedAt = startedAt }
         } else {
             let paused = PausedSession(
@@ -320,7 +330,9 @@ struct SessionView: View {
                 inverted: inverted,
                 wordCount: wordCount,
                 startedAt: startedAt,
-                wrongCardIDs: wrongIDs
+                wrongCardIDs: wrongIDs,
+                gradedCardIDs: Array(gradedThisSession),
+                againCounts: againCountThisSession
             )
             paused.deck = deck
             context.insert(paused)

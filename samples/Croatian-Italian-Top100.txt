@@ -1,0 +1,103 @@
+Croatian-Italian
+# 100 most used Croatian words with Italian translations.
+# Learning-optimized: frequency-informed, favoring words that make useful flashcards.
+i - e
+u - in
+da - sì
+ne - non / no
+na - su / a
+što - che cosa / che
+za - per
+ja - io
+ti - tu
+on - lui
+ona - lei
+mi - noi
+vi - voi
+oni - loro
+biti - essere
+imati - avere
+s - con
+od - da / di
+iz - da (provenienza)
+ali - ma
+ili - o / oppure
+ako - se
+jer - perché (causale)
+kako - come
+kada - quando
+gdje - dove
+tko - chi
+zašto - perché (domanda)
+koji - che / quale
+sve - tutto
+nešto - qualcosa
+ništa - niente
+netko - qualcuno
+nitko - nessuno
+samo - solo / soltanto
+još - ancora
+već - già
+sada - adesso / ora
+onda - allora / poi
+ovdje - qui
+tamo - là
+danas - oggi
+sutra - domani
+jučer - ieri
+uvijek - sempre
+nikad - mai
+možda - forse
+mnogo - molto
+malo - poco
+više - di più
+manje - meno
+dobro - bene
+dobar - buono
+loš - cattivo
+velik - grande
+mali - piccolo
+nov - nuovo
+star - vecchio
+lijep - bello
+moći - potere
+htjeti - volere
+morati - dovere
+trebati - avere bisogno di
+znati - sapere
+razumjeti - capire
+misliti - pensare
+ići - andare
+doći - venire / arrivare
+vidjeti - vedere
+reći - dire
+govoriti - parlare
+gledati - guardare
+slušati - ascoltare
+čitati - leggere
+pisati - scrivere
+kupiti - comprare
+raditi - fare / lavorare
+živjeti - vivere
+voljeti - amare
+jesti - mangiare
+piti - bere
+spavati - dormire
+dan - giorno
+noć - notte
+jutro - mattina
+večer - sera
+godina - anno
+vrijeme - tempo
+čovjek - uomo
+žena - donna
+dijete - bambino
+prijatelj - amico
+kuća - casa
+grad - città
+voda - acqua
+novac - soldi / denaro
+život - vita
+riječ - parola
+hvala - grazie
+molim - prego / per favore

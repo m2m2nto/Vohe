@@ -46,8 +46,6 @@ struct LibraryView: View {
         dueCount > 100 ? "Review" : "Review (\(dueCount) due)"
     }
 
-    private static let pausedCap = 5
-
     var body: some View {
         NavigationStack {
             Group {
@@ -241,10 +239,6 @@ struct LibraryView: View {
 
     private func handleQuickSessionRequest() {
         guard router.quickSessionRequested else { return }
-        guard paused.count < Self.pausedCap else {
-            router.quickSessionRequested = false
-            return
-        }
         guard let deck = lastPracticedDeck(), !deck.cards.isEmpty else {
             return
         }

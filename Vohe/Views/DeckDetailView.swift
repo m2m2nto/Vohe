@@ -4,13 +4,11 @@ import SwiftData
 struct DeckDetailView: View {
     @Bindable var deck: Deck
     @Environment(\.modelContext) private var context
-    @Query private var allPaused: [PausedSession]
     @Query private var allDecks: [Deck]
     @State private var inverted = false
     @State private var wordCount: Int = 20
     @State private var sessionActive = false
     @State private var hardestActive = false
-    @State private var showCapAlert = false
     @State private var addingCard = false
     @State private var fileError: String?
     @State private var renaming = false
@@ -19,7 +17,6 @@ struct DeckDetailView: View {
     static let wordCountOptions: [(label: String, value: Int)] = [
         ("5", 5), ("20", 20), ("50", 50), ("100", 100), ("All", 0)
     ]
-    static let pausedCap = 5
 
     private var rankableCount: Int {
         DifficultyStore.shared.rankableCount(
@@ -85,23 +82,15 @@ struct DeckDetailView: View {
                 .pickerStyle(.segmented)
                 Toggle("Inverted (show \(deck.language2) first)", isOn: $inverted)
                 Button {
-                    if allPaused.count >= Self.pausedCap {
-                        showCapAlert = true
-                    } else {
-                        UserDefaults.standard.set(wordCount, forKey: "vohe.lastSlotSize")
-                        sessionActive = true
-                    }
+                    UserDefaults.standard.set(wordCount, forKey: "vohe.lastSlotSize")
+                    sessionActive = true
                 } label: {
                     Label("Start Session", systemImage: "play.fill")
                 }
                 .disabled(deck.cards.isEmpty)
                 Button {
-                    if allPaused.count >= Self.pausedCap {
-                        showCapAlert = true
-                    } else {
-                        UserDefaults.standard.set(wordCount, forKey: "vohe.lastSlotSize")
-                        hardestActive = true
-                    }
+                    UserDefaults.standard.set(wordCount, forKey: "vohe.lastSlotSize")
+                    hardestActive = true
                 } label: {
                     Label("Practice Hardest", systemImage: "flame.fill")
                 }
@@ -167,11 +156,6 @@ struct DeckDetailView: View {
         }
         .fullScreenCover(isPresented: $hardestActive) {
             SessionView(deck: deck, inverted: inverted, wordCount: wordCount, onlyHardest: true, resume: nil)
-        }
-        .alert("Too Many Paused Sessions", isPresented: $showCapAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("You have \(Self.pausedCap) paused sessions. Resume or discard one from the Library to start a new one.")
         }
         .alert(
             "Couldn't Update File",

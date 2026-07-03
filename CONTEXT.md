@@ -7,41 +7,12 @@ Vohe is a personal iOS flashcard app for daily vocabulary practice. This glossar
 ### Entities
 
 **Deck**:
-A named collection of Cards sharing one language pair (e.g. "Croatian–Italian"). A **projection of one Dictionary** — at most one Deck per language pair, auto-populated with one Card per Dictionary entry. There is no file-import path; the maintainer is the sole source of new pairs.
+A named collection of Cards sharing one language pair (e.g. "Croatian–Italian"), imported from a `.txt` file via the iOS Files picker and mirrored back to a file by `DeckFileStore`.
 _Avoid_: "list", "set", "collection".
 
 **Card**:
-A `(front, back)` text pair belonging to exactly one Deck. Mirrors a DictionaryEntry of its Deck's pair and adds scheduling state (`Box`, `nextDue`) and a `wrongLastSession` flag (see Wrong-last-session). The projection never deletes a Card.
-_Avoid_: "entry", "word", "pair", "flashcard" (use Card; "entry" is the Dictionary-side term).
-
-### Dictionary
-
-**Dictionary**:
-The canonical vocabulary content for one language pair — a list of `(front, back)` entries, bundled with the app and refreshed at runtime via the manifest pull (ADR-0003). Exactly one Dictionary per pair; the maintainer is its sole source. A Deck projects one Dictionary.
-_Avoid_: "reference", "word list" (the Dictionary is the source of truth, not a side reference).
-
-**DictionaryEntry**:
-One `(front, back)` row of a Dictionary, tagged with an **Origin**. Has no Leitner state — that lives on its projected Card.
-_Avoid_: "Card".
-
-**Origin**:
-The provenance tag on a DictionaryEntry: `canonical` (from the bundled/synced file), `userAddition` (the user added it), or `canonicalWithEdit` (a canonical entry the user rewrote). Drives the "mine" marker — blue dot for `userAddition`, blue pencil for `canonicalWithEdit` — shown in `DictionaryView` and on the projected `CardsListView` row.
-_Avoid_: "source", "kind".
-
-**Projection**:
-The relationship by which a Deck mirrors its Dictionary: every entry of the pair becomes a Card (Box 0 when new), edits propagate to the matching Card preserving Leitner state, and Cards are never deleted. Performed by `DeckDictionaryProjector`.
-_Avoid_: "sync" (reserved for the remote manifest pull), "import".
-
-**Suggestion**:
-A user's local change to a pair's Dictionary, accumulated per pair as **additions** (net-new entries) and **edits** (a canonical entry rewritten). Applied locally on read (user change wins), shipped to the maintainer in batch via the share sheet, and pruned by Post-sync cleanup once canonical adopts it.
-_Avoid_: "contribution" (use Suggestion for the unit; "contribute" is fine as the verb).
-
-**Pending suggestions**:
-The not-yet-adopted Suggestions for a pair (`additions + edits`). Surfaced by the per-pair "Send pending (n)" button and its red-dot badge in `DictionaryView`.
-
-**Post-sync cleanup**:
-The pass that runs after a successful canonical pull and prunes Suggestions the maintainer adopted (an addition now in canonical; an edit whose `edited` value is now in canonical). Removing a Suggestion clears the "mine" marker on its entry.
-_Avoid_: "Backfill" (that is the one-shot Leitner state-population op).
+A `(front, back)` text pair belonging to exactly one Deck. Carries scheduling state (`Box`, `nextDue`) and a `wrongLastSession` flag (see Wrong-last-session).
+_Avoid_: "entry", "word", "pair", "flashcard" (use Card).
 
 ### Session
 
@@ -151,7 +122,7 @@ The iOS-level delivery mechanism (`UNUserNotification`). Use this word only when
 ### Library surfaces
 
 **Library**:
-The home screen (`LibraryView`) — list of Decks plus the Review row and the In Progress section. The `+` toolbar button opens a **Dictionary picker** over locally-known canonical pairs (it no longer imports files): picking a pair opens its Deck, creating and projecting one first if none exists.
+The home screen (`LibraryView`) — list of Decks plus the Review row and the In Progress section. The `+` toolbar button opens the iOS file importer to create a Deck from a `.txt` vocabulary file.
 
 **In Progress**:
 The Library section listing `PausedSession`s. Capped at 5 (`pausedCap`); when the cap is hit, new perDeck Sessions cannot be paused (they can still complete or be discarded).

@@ -128,7 +128,7 @@ A box-5 card swiped right stays at box 5 with due = today + 60d. There is no box
 
 ### "Due today" definition
 
-A card is due if `nextDue <= startOfDay(now) + 24h` (i.e., due today or earlier). New cards (`boxIndex == 0`) are always due.
+A card is due if `nextDue < startOfDay(now) + 24h` (i.e., strictly before tomorrow's start — due today or earlier). New cards (`boxIndex == 0`) are always due.
 
 Overdueness sort: descending by `(today - nextDue)` — the most overdue card surfaces first.
 
@@ -227,7 +227,7 @@ Numbered for traceability, matching the style of the existing SPEC.md.
 9. **Reinforcement does not advance box.** A card swiped left, then right within the same session, ends at boxIndex = 1, nextDue = today + 1 day. The right-swipe within the session only updates `DifficultyStore` seen/correct counts; it does NOT promote the card to box 2.
 10. **Global Review direction.** Cards in a global Review session display non-inverted (front shows language1 text). There is no inverted toggle on the global Review row.
 11. **Persistence.** Force-quitting the app immediately after swiping a card preserves the new box and due date on next launch.
-12. **Pause/resume.** Pausing a session mid-reinforcement (with re-queued duplicates in `order`) and resuming restores the order including duplicates. The `againCountThisSession` resets to 0 on resume.
+12. **Pause/resume.** Pausing a session mid-reinforcement (with re-queued duplicates in `order`) and resuming restores the order including duplicates. The once-per-card scheduling guard and `againCountThisSession` counters persist across the pause — resuming continues the same session (see CONTEXT.md "Session").
 13. **"Practice Hardest" unchanged.** Selecting Practice Hardest still orders cards by wrong-rate from `DifficultyStore`, ignoring boxes and due dates. Verified by running both modes on the same deck and observing different orders.
 14. **No regression in existing acceptance criteria.** All criteria 1–10 in the existing `SPEC.md` continue to hold, except where explicitly superseded (criteria 3 and 5 in the existing spec are replaced by criteria 4–8 above).
 15. **Timezone correctness.** Reviewing a card at 23:55 local time and again at 00:05 the next local day shows the card as due (it was rescheduled +1 day = tomorrow start-of-day; "tomorrow" from 23:55 = today's startOfDay + 1d, so it's due at 00:00 the next day).
