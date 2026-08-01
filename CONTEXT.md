@@ -40,11 +40,11 @@ The Library-level entry point that opens a global Session over all currently-Due
 _Avoid_: "global review", "review session" (the row is "Review"; the Session it opens is a global Session).
 
 **Practice Hardest**:
-A kind of perDeck Session with `onlyHardest = true`. Orders cards by `DifficultyStore` wrong-rate descending; ignores Box state and Due dates. Cards must have `seen ≥ 3` to be eligible.
+A kind of perDeck Session with `onlyHardest = true`. Orders cards by `DifficultyStore` wrong-rate descending; ignores Box state and Due dates. A Card enters the order only if it is Rankable (`seen ≥ 3`) **and** has a wrong-rate above 0 — a Card you have never missed is never drilled here. The button itself unlocks only once the Deck holds at least `DifficultyStore.minSeenForRanking` (3) Rankable Cards.
 _Avoid_: "hardest mode", "hard practice".
 
 **Quick session**:
-A perDeck Session with Slot 5, started by tapping a reminder notification, run on the most-recently-Practiced Deck.
+A perDeck Session with Slot 5, started by tapping a reminder notification, run on the most-recently-Practiced Deck — or, when no Deck has ever been Practiced, on the newest Deck.
 _Avoid_: "notification session", "5-card session".
 
 **Practice**:
@@ -125,7 +125,7 @@ The iOS-level delivery mechanism (`UNUserNotification`). Use this word only when
 The home screen (`LibraryView`) — list of Decks plus the Review row and the In Progress section. The `+` toolbar button opens the iOS file importer to create a Deck from a `.txt` vocabulary file.
 
 **In Progress**:
-The Library section listing `PausedSession`s. Capped at 5 (`pausedCap`); when the cap is hit, new perDeck Sessions cannot be paused (they can still complete or be discarded).
+The Library section listing `PausedSession`s. Capped at 5 (`PausedSession.cap`); when the cap is hit, new perDeck Sessions cannot be paused (they can still complete or be discarded).
 
 **Active session**:
 The currently-presented Session sheet, one of: Quick session (`.quickDeck`), Resumed Paused Session (`.resume`), or Review (`.globalReview`). Per-deck "Start Session" is launched from `DeckDetailView`, not Library.

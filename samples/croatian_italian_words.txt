@@ -79,7 +79,7 @@ pitanja - domanda
 ovo - questo (vicino a chi parla)
 to - questo (vicino a chi ascolta)
 ono - quello
-tako-tako - cosi-cosi
+tako tako - cosi cosi
 početi - parlare (una storia)
 govoriti - parlare (una lingua)
 cvijet - fiore
@@ -371,7 +371,7 @@ kravata - cravatta
 remen - cinta
 sunčane naočale - occhiali da sole
 sitnice - bagatto
-leptir-mašna - farfallino
+leptir mašna - farfallino
 ručni sat - orologio
 cipele - scarpe
 čizme - stivali

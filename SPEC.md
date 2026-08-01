@@ -1,6 +1,6 @@
 # Vohe — Vocabulary Flashcard App (Spec)
 
-> **Superseded sections:** The "Session Logic" section below and the "Spaced repetition algorithm" line under "Out of Scope (v1)" are superseded by [`docs/specs/spaced-repetition-leitner.md`](docs/specs/spaced-repetition-leitner.md). The "Editing cards or decks in-app" line under "Out of Scope (v1)" is also superseded: cards can now be added, edited (including mid-session), and deleted in-app, and decks can be renamed and exported. The rest of this v1 spec still holds.
+> **Superseded sections:** The "Session Logic" section below, the "wrong words carry over to next session" line under "Scope (v1)", and the "Spaced repetition algorithm" line under "Out of Scope (v1)" are superseded by [`docs/specs/spaced-repetition-leitner.md`](docs/specs/spaced-repetition-leitner.md) — per-card Leitner scheduling replaces wrong-word carryover, and a Library-level "Review (N due)" surface was added. The "Editing cards or decks in-app" line under "Out of Scope (v1)" is also superseded: cards can now be added, edited (including mid-session), and deleted in-app, and decks can be renamed and exported. "Data Model" and "Screens" below have been updated to match the shipped app; [`CONTEXT.md`](CONTEXT.md) is the authoritative glossary for the terms they use. The rest of this v1 spec still holds.
 
 ## Goal
 Personal iOS app to memorize vocabulary in new languages via flashcards. Installed directly via Xcode (no App Store).
@@ -8,7 +8,7 @@ Personal iOS app to memorize vocabulary in new languages via flashcards. Install
 ## Scope (v1)
 - Single user, on-device only, no backend, no iCloud sync.
 - Library of multiple decks, imported from text files via the iOS Files picker.
-- Flashcard sessions with swipe scoring; wrong words carry over to next session.
+- Flashcard sessions with swipe scoring. (v1: wrong words carry over to the next session — superseded by per-card Leitner scheduling.)
 - UI in English. Vocabulary content is language-agnostic.
 
 ## Out of Scope (v1)
@@ -35,36 +35,41 @@ Personal iOS app to memorize vocabulary in new languages via flashcards. Install
 - Validation on import: reject and show error if line 1 is malformed or fewer than 1 vocabulary line.
 
 ## Data Model
-- **Deck**: `id`, `name` (filename without extension), `language1`, `language2`, `createdAt`, `cards: [Card]`.
-- **Card**: `id`, `front` (language1 word), `back` (language2 word), `wrongLastSession: Bool`, `deck`.
-- **SessionResult**: `id`, `deckId`, `total`, `correct`, `inverted: Bool`, `completedAt`.
+- **Deck**: `id`, `name` (filename without extension), `language1`, `language2`, `createdAt`, `cards: [Card]`, `sessions: [SessionResult]`.
+- **Card**: `id`, `front` (language1 word), `back` (language2 word), `wrongLastSession: Bool`, `boxIndex: Int` (0 = new, 1–5 = scheduled), `nextDue: Date` (`.distantPast` when new), `deck`.
+- **SessionResult**: `id`, `total`, `correct`, `inverted: Bool`, `startedAt`, `completedAt`, `wrongCardIDs: [UUID]`, `deck` (relationship, not a raw id).
+- **PausedSession**: `id`, `cardOrderIDs: [UUID]` (may contain duplicates from reinforcement), `currentIndex`, `correct`, `inverted`, `wordCount`, `startedAt`, `pausedAt`, `wrongCardIDs`, `gradedCardIDs`, `againCounts` (stored as parallel id/value arrays), `deck`. At most `PausedSession.cap` (5) exist at once.
+
+Per-card historical stats (`seen` / `wrong`) live outside SwiftData, in `Documents/difficulty.json` (`DifficultyStore`).
 
 ## Screens
 
 ### 1. Library (Home)
+- "Review (N due)" row at the very top, shown only when N > 0; label drops the count when N > 100. Opens a cross-deck, forward-only, ephemeral session over due cards.
+- "In Progress" section listing paused sessions (max 5); tap to resume, swipe to delete.
 - List of decks: name, language pair, card count, last-session score.
-- Tap a deck → Deck Detail.
-- Toolbar: `+` button → file importer.
+- Tap a deck → Deck Detail. Swipe a deck to delete.
+- Toolbar: bell button → Reminder settings; `+` button → file importer.
 
 ### 2. Deck Detail
-- Shows deck name, language pair, card count, count of wrong-last-session cards.
-- "Start Session" button.
-- Toggle: "Inverted (show translation first)".
-- List of last 5 session results.
-- Toolbar: Delete deck (with confirmation).
+- Shows deck name (tap to rename), language pair, card count (tap → cards list), count of wrong-last-session cards (tap → wrong-cards list).
+- Session section: slot picker (5 / 20 / 50 / 100 / All), "Inverted (show <language2> first)" toggle, "Start Session", and "Practice Hardest" (enabled once the deck has at least 3 rankable cards).
+- List of last 5 session results; tap one → Session Detail (duration + missed words).
+- Toolbar: `+` add card; Share to export the deck's `.txt` mirror. Deck deletion happens from Library (swipe).
 
 ### 3. Flashcard Session
 - One card at a time, centered.
 - Tap card → flip animation reveals the other side.
-- After flip, swipe right = correct, swipe left = wrong (gestures disabled until flip).
-- Progress indicator: `card N of total`.
+- After flip, swipe right = correct, swipe left = wrong (gestures disabled until flip). A wrong card is re-queued later in the same session, at most twice.
+- Progress indicator: `card N of total` (total grows when a card is re-queued).
 - Live score (correct so far / shown so far).
-- Cancel button (top-left) returns to Deck Detail without saving results.
+- Pencil button edits the current card mid-session.
+- Cancel button (top-left) opens a dialog: Pause (per-deck sessions only, and only under the paused-session cap) / Discard / Keep going.
 
 ### 4. Session Results
 - Total cards, correct count, percentage.
 - "Done" returns to Deck Detail.
-- Saves SessionResult.
+- Saves a SessionResult — except for Review sessions, which are ephemeral and record nothing at the session level.
 
 ## Session Logic
 1. Collect all cards in deck.

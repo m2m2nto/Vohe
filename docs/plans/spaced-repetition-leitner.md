@@ -12,7 +12,7 @@ Source spec: [`docs/specs/spaced-repetition-leitner.md`](../specs/spaced-repetit
 - **One-shot migration gated by UserDefaults flag** (`vohe.schedulerBackfillCompleted.v1`). Runs synchronously on first launch post-upgrade. No UI.
 - **`SessionView` becomes deck-optional.** v1 supports per-deck and global modes. Global mode disables pause/resume (Cancel only offers Discard) AND does not persist `SessionResult`. Per-card writes (box/due/wrongLastSession/DifficultyStore) still happen on every swipe.
 - **"Review (N due)" hides its count when N > 100** (row reads "Review"); avoids the streak-anxiety the README disclaims. Underlying queue size is still N.
-- **Within-session reinforcement is in-memory only.** Re-queue appends to `order: [Card]`; `againCountThisSession: [UUID: Int]` is `@State`, not persisted. Box/due update writes happen on the *first* grade per card per session.
+- **Within-session reinforcement is in-memory during the session.** Re-queue appends to `order: [Card]`; `againCountThisSession: [UUID: Int]` is `@State`. Box/due update writes happen on the *first* grade per card per session. Pausing serializes the counters and the once-per-card guard onto `PausedSession` so a resume continues the same session.
 - **Tests:** Add a `VoheTests` XCTest target via `project.yml` + xcodegen. Scheduler and migration get unit tests; UI changes get manual smoke tests.
 
 ## Task List
@@ -97,10 +97,10 @@ Source spec: [`docs/specs/spaced-repetition-leitner.md`](../specs/spaced-repetit
 
 #### Task 4: Implement `SchedulerMigration` with unit tests
 
-**Description:** Pure function (or static method) that takes the SwiftData `ModelContext` and `DifficultyStore`, walks all `Card`s, and assigns `boxIndex` + `nextDue` per the spec's wrong-rate buckets. Stagger non-zero boxes randomly across the next 7 days.
+**Description:** Pure function (or static method) that takes the SwiftData `ModelContext` and a stats lookup, walks all `Card`s, and assigns `boxIndex` + `nextDue` per the spec's wrong-rate buckets. Spread non-zero boxes across the next 7 days by shuffling the assigned cards and dealing them round-robin over the 7 day-offsets.
 
 **Acceptance criteria:**
-- [ ] `Vohe/Services/SchedulerMigration.swift` exposes a static method `run(context: ModelContext, store: DifficultyStore, today: Date = .now)`.
+- [ ] `Vohe/Services/SchedulerMigration.swift` exposes a static method `run(context: ModelContext, stats: (Card) -> CardStats?, today: Date = .now, calendar: Calendar = .current)`. The `DifficultyStore` lookup is injected by the caller (`VoheApp`) so the migration stays testable without touching `difficulty.json`.
 - [ ] Cards with no stats or `seen < 3` → `boxIndex = 0, nextDue = .distantPast`. (**Success criterion 2**)
 - [ ] Cards with `wrongRate < 0.2` → `boxIndex = 3`; `< 0.4` → `boxIndex = 2`; else → `boxIndex = 1`. (**Success criterion 2**)
 - [ ] All assigned cards (box 1–3) have `nextDue ∈ [startOfDay(today), startOfDay(today) + 7d)`. No more than `ceil(assignedCount / 7)` cards share the same `nextDue`. (**Success criterion 3**)
@@ -178,16 +178,16 @@ Source spec: [`docs/specs/spaced-repetition-leitner.md`](../specs/spaced-repetit
 - [ ] On swipe-left: if `againCountThisSession[card.id] < 2`, append the card to `order` and increment the counter. (**Success criterion 8**)
 - [ ] The progress indicator (`N / total`) updates to reflect the new total when a card is re-queued.
 - [ ] Subsequent grades on a re-queued card call `DifficultyStore.recordAnswer` but do NOT mutate `card.boxIndex` or `card.nextDue`. Box/due are written exactly once per card per session — on the first grade. (**Success criterion 9**)
-- [ ] Resume from `PausedSession` restores the order including any re-queued duplicates; `againCountThisSession` resets to `[:]` on resume. (**Success criterion 12**)
+- [ ] Resume from `PausedSession` restores the order including any re-queued duplicates, plus `gradedThisSession` and `againCountThisSession` — resuming continues the *same* session, so the reinforcement cap and the once-per-card scheduling guard carry over. (**Success criterion 12**)
 
 **Verification:**
 - [ ] Build clean.
 - [ ] Manual smoke: start a 5-card session. Swipe left on the first card three times consecutively (it'll keep coming back). Confirm: first two left-swipes re-queue (total grows to 6, then 7); third left-swipe does NOT re-queue (total stays at 7); the card's `boxIndex` is 1 after the first swipe and stays 1 after each subsequent swipe.
-- [ ] Manual smoke: start a session, swipe-left to re-queue once, pause via Cancel → Pause, resume from Library. Confirm the duplicate is still in order; swipe-left on it twice more and observe the cap kicks in (since counter reset on resume, you can re-queue 2 more times — this matches spec).
+- [ ] Manual smoke: start a session, swipe-left to re-queue once, pause via Cancel → Pause, resume from Library. Confirm the duplicate is still in order; swipe-left on it once more (re-queues, counter now 2) and then again (no re-queue — the cap carried across the pause).
 
 **Dependencies:** Task 6.
 
-**Files likely touched:** `Vohe/Views/SessionView.swift`.
+**Files likely touched:** `Vohe/Views/SessionView.swift`, `Vohe/Models/PausedSession.swift` (persisted `gradedCardIDs` / `againCounts`).
 
 **Scope:** M.
 
@@ -211,9 +211,9 @@ Source spec: [`docs/specs/spaced-repetition-leitner.md`](../specs/spaced-repetit
 - [ ] `SessionView` gains an internal `Mode` enum: `.perDeck(Deck)` or `.global(cards: [Card])`. Existing call sites continue to compile (use `.perDeck` shorthand or keep the `deck:` initializer as a convenience).
 - [ ] In `.global` mode, `buildOrder` uses the explicit cards list (no `new` / `undue` fillers); the exit confirmation dialog shows only "Discard" and "Keep going" (no "Pause").
 - [ ] In `.global` mode, **no `SessionResult` is inserted into the context on completion, and no `PausedSession` is ever created**. Per-card writes (box/due/wrongLastSession/DifficultyStore) still happen on every swipe. (**Success criterion 16**)
-- [ ] `LibraryView` adds a `Section` (or list row at the very top, above "In Progress") showing "Review (N due)" where N = count of cards across all decks with `boxIndex >= 1 && nextDue <= startOfDay(today) + 24h`. Row is hidden when N == 0. When N > 100, the label reads "Review" with no count; the row still works the same. (**Success criterion 7**)
+- [ ] `LibraryView` adds a `Section` (or list row at the very top, above "In Progress") showing "Review (N due)" where N = count of cards across all decks with `boxIndex >= 1 && nextDue < startOfDay(tomorrow)`. Row is hidden when N == 0. When N > 100, the label reads "Review" with no count; the row still works the same. (**Success criterion 7**)
 - [ ] Tapping the row presents `SessionView` in `.global` mode with cards sorted by overdueness desc. Direction is forward, no toggle. (**Success criterion 10**)
-- [ ] Slot size for the global session uses `UserDefaults.standard.integer(forKey: "vohe.lastSlotSize")` defaulting to 20. (Out-of-spec convenience: store last-used slot when starting any session. Acceptable per spec which says "user's last-used slot value … default 20".)
+- [ ] Slot size for the global session reads `UserDefaults.standard.object(forKey: "vohe.lastSlotSize") as? Int ?? 20`. Use `object(_:) as? Int`, **not** `integer(forKey:)` — the latter returns `0` for a missing key, and `0` is the "All" sentinel, so an unset key would silently mean "all due cards". (Out-of-spec convenience: `DeckDetailView` stores the last-used slot when starting a per-deck session. Acceptable per spec which says "user's last-used slot value … default 20".)
 
 **Verification:**
 - [ ] Build clean.

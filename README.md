@@ -20,9 +20,10 @@ So I built Vohe. It's a personal project; I use it every day.
 
 1. **Make a word list** in plain text — `Croatian-Italian` on the first line, then `word - translation` per line. See [`samples/Croatian-Italian.txt`](samples/Croatian-Italian.txt) for a real ~745-word deck.
 2. **Drop the file in iCloud Drive** (or any file provider the iOS Files app sees) and import it via the **+** button in the library.
-3. **Run a session**: 5, 20, 50, 100, or All. Tap the card to flip, swipe **right** if you knew it, **left** if you didn't. The app shuffles wrong-last-time cards to the front.
-4. **Enable reminders** (bell icon). Pick Random (N times per day inside a window) or Exact (specific HH:MM). Tap a reminder → a 5-word session opens on your most recently practiced deck.
-5. **Practice Hardest** once a card has been seen ≥ 3 times — Vohe ranks by wrong-rate and gives you the worst offenders.
+3. **Run a session**: 5, 20, 50, 100, or All. Tap the card to flip, swipe **right** if you knew it, **left** if you didn't. Cards you're due to see come first, then ones you've never seen. A card you miss comes back later in the same session (at most twice).
+4. **Tap "Review"** on the library home to sweep the cards that are due today across *all* your decks in one go.
+5. **Enable reminders** (bell icon). Pick Random (N times per day inside a window) or Exact (specific HH:MM). Tap a reminder → a 5-word session opens on your most recently practiced deck.
+6. **Practice Hardest** once the deck has a few cards seen ≥ 3 times — Vohe ranks by wrong-rate and gives you the worst offenders (cards you've never missed are skipped).
 
 That's the whole loop. Open the app, swipe a handful, close it. Tomorrow, same.
 
@@ -33,7 +34,8 @@ That's the whole loop. Open the app, swipe a handful, close it. Tomorrow, same.
 - **Custom session sizes**: 5 / 20 / 50 / 100 / All.
 - **Inverted mode** to drill the other direction (target → source).
 - **Pause & resume** up to 5 in-progress sessions.
-- **Smart wrong-words queue**: cards you missed last session show up first next time.
+- **Spaced repetition** (5-box Leitner, intervals 1 / 3 / 7 / 21 / 60 days): every card carries its own box and due date. Knew it → the card moves up a box and disappears for longer; missed it → back to box 1, due tomorrow, and re-queued inside the current session.
+- **"Review" row** on the library home: everything due today across all decks, in one session. It's deliberately ephemeral — no score is recorded, and the count is hidden once it passes 100 so it never becomes a guilt counter.
 - **Difficulty tracking** per card (seen / wrong counts), stored in a user-visible JSON file at `Documents/difficulty.json` so it survives backups and can be hand-edited or moved to iCloud Drive via the Files app.
 - **Session history with detail view**: tap any past session to see duration and the exact words you got wrong.
 - **Local notifications**, fully configurable, with a "tap to start a quick 5-word session" handoff.
@@ -91,12 +93,18 @@ Steps:
 project.yml              xcodegen config
 Vohe.xcodeproj/          generated — do NOT edit by hand
 Vohe/
-  VoheApp.swift          @main entry
+  VoheApp.swift          @main entry; runs the one-shot scheduler backfill
   Models/                SwiftData @Model types (Deck, Card, SessionResult, PausedSession)
-  Services/              DeckParser, ReminderScheduler, DifficultyStore, NotificationRouter
-  Views/                 LibraryView, DeckDetailView, SessionView, ResultsView, SessionDetailView
+  Services/              DeckParser, DeckFileStore, DifficultyStore, LeitnerScheduler,
+                         SchedulerMigration, ReminderScheduler, NotificationRouter
+  Views/                 LibraryView, DeckDetailView, CardsListView, CardEditorSheet,
+                         SessionView, ResultsView, SessionDetailView (+ WrongCardsView),
+                         MinuteIntervalDatePicker
+VoheTests/               unit tests for the scheduler and the backfill
 samples/                 example vocabulary files
-SPEC.md                  full functional spec
+SPEC.md                  functional spec (v1 + supersede notes)
+CONTEXT.md               domain glossary — the words used in code, specs, and PRs
+docs/                    ideas / specs / plans per feature
 ```
 
 If you add or rename Swift files, re-run `xcodegen generate`.
@@ -108,4 +116,12 @@ xcodebuild -project Vohe.xcodeproj -scheme Vohe \
   -sdk iphonesimulator -configuration Debug \
   -destination 'generic/platform=iOS Simulator' \
   build CODE_SIGNING_ALLOWED=NO
+```
+
+Unit tests (scheduler + backfill):
+
+```
+xcodebuild test -project Vohe.xcodeproj -scheme Vohe \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.0' \
+  CODE_SIGNING_ALLOWED=NO
 ```

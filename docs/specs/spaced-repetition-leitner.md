@@ -38,13 +38,14 @@ xcodebuild test -project Vohe.xcodeproj -scheme Vohe \
 Vohe/
   Models/
     Card.swift                    [CHANGED] add boxIndex, nextDue
+    PausedSession.swift           [CHANGED] persist gradedCardIDs + againCounts
   Services/
     LeitnerScheduler.swift        [NEW]     box transitions, due-date math
     SchedulerMigration.swift      [NEW]     one-shot backfill from difficulty.json
   Views/
     LibraryView.swift             [CHANGED] add "Review (N due)" row
     SessionView.swift             [CHANGED] buildOrder + within-session reinforcement
-    DeckDetailView.swift          [UNCHANGED]
+    DeckDetailView.swift          [CHANGED] store last-used slot in UserDefaults
   VoheApp.swift                   [CHANGED] run SchedulerMigration on launch
 
 docs/
@@ -137,16 +138,16 @@ Overdueness sort: descending by `(today - nextDue)` — the most overdue card su
 For a **per-deck session** with chosen slot size N:
 
 1. Pool = cards in this deck.
-2. Partition into: `due` (boxIndex ≥ 1 and nextDue ≤ today), `new` (boxIndex == 0), `undue` (the rest).
+2. Partition into: `due` (boxIndex ≥ 1 and `nextDue < startOfDay(tomorrow)`), `new` (boxIndex == 0), `undue` (the rest).
 3. Sort `due` by overdueness desc, then shuffle within equal overdueness.
 4. Shuffle `new` and `undue` independently.
 5. Final order = `due` ++ `new` ++ `undue`, truncated to N (where N==0 means "All").
 
 For a **global Review session** triggered from Library:
 
-1. Pool = `due` cards across all decks (boxIndex ≥ 1 and nextDue ≤ today).
+1. Pool = `due` cards across all decks (boxIndex ≥ 1 and `nextDue < startOfDay(tomorrow)`).
 2. Sort by overdueness desc, shuffle within equal overdueness.
-3. Slot size is fixed at the user's last-used slot value (read from `UserDefaults`, default 20). No filler from new/undue cards — global Review is "due only."
+3. Slot size is fixed at the user's last-used slot value (`UserDefaults.standard.object(forKey: "vohe.lastSlotSize") as? Int ?? 20`; `integer(forKey:)` must not be used — it returns `0` for a missing key and `0` is the "All" sentinel). No filler from new/undue cards — global Review is "due only."
 4. Direction is forward (non-inverted), no toggle.
 5. Global sessions are ephemeral: **no `SessionResult` is persisted on completion**, and **no `PausedSession` is ever created** (the Cancel dialog offers Discard / Keep going only — no Pause). Per-card box/due/wrongLastSession updates and `DifficultyStore` updates still happen on every swipe; only the session-level records are skipped.
 
@@ -166,13 +167,13 @@ When a card is swiped left during a session:
 On first launch after the upgrade, gated by `UserDefaults.standard.bool(forKey: "vohe.schedulerBackfillCompleted.v1")`:
 
 1. For each `Card` in SwiftData:
-   - Look up `DifficultyStore.shared.stats(deckName, front, back)`.
+   - Look up its stats via an injected `stats: (Card) -> CardStats?` closure. The caller (`VoheApp`) supplies `DifficultyStore.shared.stats(deckName:front:back:)`; injecting it keeps the migration testable without touching `difficulty.json`.
    - If stats missing or `seen < 3`: `boxIndex = 0`, `nextDue = .distantPast`.
    - Else compute `wrongRate = wrong / seen`:
      - `wrongRate < 0.2` → boxIndex = 3
      - `wrongRate < 0.4` → boxIndex = 2
      - else → boxIndex = 1
-   - For cards assigned to box 1–3: stagger `nextDue` randomly across the next 7 days (`startOfDay(today) + Int.random(in: 0..<7) days`) to avoid a wall of due cards.
+   - For cards assigned to box 1–3: spread `nextDue` across the next 7 days to avoid a wall of due cards. Shuffle the assigned cards, then deal them round-robin over the day offsets (`nextDue = startOfDay(today) + (i % 7) days`). Round-robin rather than an independent random draw per card — only the former guarantees the `ceil(assignedCount / 7)` bound in criterion 3.
 2. Save context.
 3. Set the UserDefaults flag.
 
@@ -180,17 +181,15 @@ The migration runs synchronously before the first view appears (called from `Voh
 
 ## Testing Strategy
 
-Vohe has no test target today. Two options:
+**Resolved: Option A.** The `VoheTests` target exists and `LeitnerSchedulerTests` + `SchedulerMigrationTests` are green. The options below are kept for the record.
 
-**Option A (Recommended): Add a `VoheTests` XCTest target.**
+**Option A (chosen): Add a `VoheTests` XCTest target.**
 - Worth the project.yml change because the Leitner logic is pure, deterministic, and easy to get subtly wrong (off-by-one in box transitions, timezone bugs in due-date math, re-queue cap math).
 - Tests live in `VoheTests/LeitnerSchedulerTests.swift` and `VoheTests/SchedulerMigrationTests.swift`.
 - Run via `xcodebuild test` (command above).
 - The `LeitnerScheduler` is a pure `enum` with no SwiftData/UI deps, so tests are trivial to write.
 
-**Option B (Fallback): No automated tests; rely on the existing "Acceptance Criteria" manual-check convention in SPEC.md.**
-
-The author should pick A or B before implementation starts. (See Boundaries → "Ask first.")
+**Option B (rejected): No automated tests; rely on the existing "Acceptance Criteria" manual-check convention in SPEC.md.**
 
 ## Boundaries
 
@@ -201,7 +200,7 @@ The author should pick A or B before implementation starts. (See Boundaries → 
 - Persist box/due updates to SwiftData on every grade, immediately (not at session end), so a crash doesn't lose progress.
 
 **Ask first:**
-- Adding a `VoheTests` target to `project.yml` (per memory: signing config is hand-maintained — verify the test target additions don't disturb that section).
+- ~~Adding a `VoheTests` target to `project.yml`~~ — done; the `Vohe` target's signing block was left untouched. Any *further* `project.yml` edit still needs the same care (signing config is hand-maintained).
 - Removing the `wrongLastSession` field on `Card` (deferred; keep ignoring it in new code paths).
 - Changing reminder/notification logic to surface due-count (out of scope for v1 of this change).
 - Adding a daily new-card cap (deliberately out of scope per Phase 1 decision).
@@ -222,7 +221,7 @@ Numbered for traceability, matching the style of the existing SPEC.md.
 4. **Box transitions (Good).** Swiping right on a box-2 card sets boxIndex = 3 and nextDue = startOfDay(today) + 7 days. Swiping right on a box-5 card sets boxIndex = 5 (no overflow) and nextDue = today + 60 days.
 5. **Box transitions (Again).** Swiping left on a card of any box (1..5) sets boxIndex = 1 and nextDue = today + 1 day.
 6. **Due query, per-deck.** A session started on a deck with 3 cards due today, 5 new cards, 7 un-due cards, slot=20 produces an order of length 15: due first (3), then new (5, shuffled), then un-due (7, shuffled), then truncates to 20 (no truncation here, so length 15).
-7. **Due query, global.** The "Review (N due)" row on Library shows N = count of cards across all decks where boxIndex ≥ 1 AND nextDue ≤ startOfDay(today) + 24h. The row hides when N == 0. When N > 100, the row reads "Review" with no count (to avoid the streak-anxiety the README disclaims); the underlying queue size is still N. Tapping opens a session whose order length ≤ N, sorted by overdueness desc.
+7. **Due query, global.** The "Review (N due)" row on Library shows N = count of cards across all decks where boxIndex ≥ 1 AND nextDue < startOfDay(today) + 24h (strictly before tomorrow's start). The row hides when N == 0. When N > 100, the row reads "Review" with no count (to avoid the streak-anxiety the README disclaims); the underlying queue size is still N. Tapping opens a session whose order length ≤ N, sorted by overdueness desc.
 8. **Within-session reinforcement.** A session starts with a card C in position 0. Swiping left on C immediately appends C to the order. The session order length increases by 1. When C resurfaces and is swiped left again, it's appended once more. The third "Again" on C does NOT append again — `againCountThisSession[C.id]` is now 2 and the cap is hit.
 9. **Reinforcement does not advance box.** A card swiped left, then right within the same session, ends at boxIndex = 1, nextDue = today + 1 day. The right-swipe within the session only updates `DifficultyStore` seen/correct counts; it does NOT promote the card to box 2.
 10. **Global Review direction.** Cards in a global Review session display non-inverted (front shows language1 text). There is no inverted toggle on the global Review row.

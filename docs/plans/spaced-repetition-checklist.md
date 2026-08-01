@@ -24,7 +24,7 @@ Legend:
 | 9 | Reinforcement does not advance box | 🔍 | `gradedThisSession: Set<UUID>` guards the `LeitnerScheduler.apply` block in `advance()`. Manual: swipe-left then swipe-right on same re-queued card; verify card's `boxIndex` stays 1 after both grades. |
 | 10 | Global Review direction = forward, no toggle | 🔍 | `SessionView.init(globalCards:wordCount:)` hardcodes `inverted = false`. Manual: tap Review row, confirm front side shows `language1` text. |
 | 11 | Persistence (force-quit preserves new box/due) | 🔍 | `advance()` calls `try? context.save()` after every grade. Manual: swipe right on a box-2 card, force-quit, relaunch; verify card now box 3. |
-| 12 | Pause/resume mid-reinforcement preserves duplicates | 🔍 | `PausedSession.cardOrderIDs = order.map { $0.id }` serializes duplicates; resume's `compactMap { byID[$0] }` restores them. `againCountThisSession` is `@State` so resets on resume per spec. Manual: re-queue a card, pause, resume; verify duplicate present and counter behavior. |
+| 12 | Pause/resume mid-reinforcement preserves duplicates | 🔍 | `PausedSession.cardOrderIDs = order.map { $0.id }` serializes duplicates; resume's `compactMap { byID[$0] }` restores them. `gradedCardIDs` and `againCounts` are persisted on `PausedSession` and restored in `buildOrder`, so the once-per-card scheduling guard and the reinforcement cap continue across the pause. Manual: re-queue a card, pause, resume; verify duplicate present and that the cap counts from where it left off. |
 | 13 | "Practice Hardest" unchanged | ✅ (code review) + 🔍 | `onlyHardest` branch in `buildOrder` is byte-for-byte unchanged (still uses `DifficultyStore.difficultyScore`). Manual: confirm Practice Hardest still orders by wrong-rate, ignoring boxes/due. |
 | 14 | No regression in existing SPEC.md criteria 1-10 | 🔍 | See "Legacy SPEC.md" table below. |
 | 15 | Timezone correctness (23:55 + 1d → midnight next day) | ✅ | `LeitnerSchedulerTests.testTimezoneAnchorsToLocalStartOfDay`. |
@@ -55,7 +55,7 @@ Suggested 5-minute pass against a fresh build:
 4. **Start a 20-card session.** Confirm the most-overdue cards (or new ones if all backfilled to box 0) appear first.
 5. **Swipe right on first card → quit → relaunch.** Reopen deck. Card's box should have advanced (verifiable by starting another session and seeing that card not show up immediately).
 6. **In a new 5-card session, swipe left on card 1 three times.** Verify the progress bar (`N/total`) grew from 5 → 6 → 7 after the first two left-swipes, and stayed at 7 after the third.
-7. **Go back to Library.** "Review (N due)" row should be visible if any cards have `nextDue ≤ tomorrow`.
+7. **Go back to Library.** "Review (N due)" row should be visible if any scheduled card has `nextDue` strictly before tomorrow's start.
 8. **Tap Review.** Session opens, forward direction. Cancel → confirm only "Discard" and "Keep going" (no "Pause"). Resume the session and finish it.
 9. **Return to Library.** Confirm no new "In Progress" entry and no new "Recent Results" row in any deck.
 10. **Verify Practice Hardest still works** on the deck (orders by wrong-rate).
@@ -64,6 +64,6 @@ If all 10 steps pass, the implementation is ready for commit.
 
 ## Known edge cases (accepted, documented)
 
-- **Resumed session resets reinforcement counters.** A re-queued card present in `cardOrderIDs` at pause time will, after resume, be treated as a "first grade" by `gradedThisSession`. Subsequent grades will re-write `boxIndex`/`nextDue`. Spec criterion 12 explicitly accepts the `againCountThisSession` reset; this is the analogous behavior for `gradedThisSession`.
+- **Resume continues the same session.** `gradedThisSession` and `againCountThisSession` are serialized onto `PausedSession` at pause and restored on resume, so a card already graded before the pause is not re-scheduled after it, and its reinforcement cap is not refreshed. Re-pausing re-saves `order`, so duplicates added after the first pause also survive.
 - **Global session count is computed at presentation time.** If midnight passes mid-session, newly-due cards are not added to the in-flight session; user sees them on the next Library refresh.
 - **`UserDefaults.lastSlotSize` stores `0` if the user last picked "All".** Global Review will then run all due cards — arguably the right behavior for a user who explicitly preferred "All".
