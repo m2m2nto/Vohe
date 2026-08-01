@@ -18,8 +18,8 @@ struct DeckDetailView: View {
         ("5", 5), ("20", 20), ("50", 50), ("100", 100), ("All", 0)
     ]
 
-    private var rankableCount: Int {
-        DifficultyStore.shared.rankableCount(
+    private var hardestCount: Int {
+        DifficultyStore.shared.hardestCount(
             deckName: deck.name,
             fronts: deck.cards.map { ($0.front, $0.back) }
         )
@@ -94,12 +94,12 @@ struct DeckDetailView: View {
                 } label: {
                     Label("Practice Hardest", systemImage: "flame.fill")
                 }
-                .disabled(rankableCount < DifficultyStore.minSeenForRanking)
+                .disabled(hardestCount == 0)
             } header: {
                 Text("Session")
             } footer: {
-                if rankableCount < DifficultyStore.minSeenForRanking {
-                    Text("Practice Hardest unlocks once you've seen at least \(DifficultyStore.minSeenForRanking) cards three or more times.")
+                if hardestCount == 0 {
+                    Text("Practice Hardest unlocks once you've missed a card you've seen \(DifficultyStore.minSeenForRanking) or more times.")
                 }
             }
 

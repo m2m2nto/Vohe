@@ -79,9 +79,11 @@ final class DifficultyStore {
         return Double(s.wrong) / Double(s.seen)
     }
 
-    /// Count of cards in `deck` that have enough samples to participate in a "hardest" session.
-    func rankableCount(deckName: String, fronts: [(front: String, back: String)]) -> Int {
-        fronts.filter { (stats(deckName: deckName, front: $0.front, back: $0.back)?.seen ?? 0) >= Self.minSeenForRanking }.count
+    /// Count of cards a "hardest" session would actually drill: enough samples to
+    /// rank, and a wrong-rate above 0. Mirrors the filter in `SessionView.buildOrder`,
+    /// so a zero count means the session would be empty.
+    func hardestCount(deckName: String, fronts: [(front: String, back: String)]) -> Int {
+        fronts.filter { (difficultyScore(deckName: deckName, front: $0.front, back: $0.back) ?? 0) > 0 }.count
     }
 
     private func persist() {

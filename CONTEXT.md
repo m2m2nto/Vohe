@@ -40,7 +40,7 @@ The Library-level entry point that opens a global Session over all currently-Due
 _Avoid_: "global review", "review session" (the row is "Review"; the Session it opens is a global Session).
 
 **Practice Hardest**:
-A kind of perDeck Session with `onlyHardest = true`. Orders cards by `DifficultyStore` wrong-rate descending; ignores Box state and Due dates. A Card enters the order only if it is Rankable (`seen ≥ 3`) **and** has a wrong-rate above 0 — a Card you have never missed is never drilled here. The button itself unlocks only once the Deck holds at least `DifficultyStore.minSeenForRanking` (3) Rankable Cards.
+A kind of perDeck Session with `onlyHardest = true`. Orders cards by `DifficultyStore` wrong-rate descending; ignores Box state and Due dates. A Card enters the order only if it is Rankable (`seen ≥ 3`) **and** has a wrong-rate above 0 — a Card you have never missed is never drilled here. The button unlocks as soon as the Deck holds one such Card: `DifficultyStore.hardestCount` applies the same predicate as the session's own filter, so an enabled button always means a non-empty Session.
 _Avoid_: "hardest mode", "hard practice".
 
 **Quick session**:
@@ -101,7 +101,7 @@ _Avoid_: "history", "metrics".
 _Avoid_: "difficulty score" (use Wrong-rate; "difficulty score" is the same value but the noun isn't useful elsewhere).
 
 **Rankable**:
-A Card eligible for Practice Hardest — i.e. has `seen ≥ 3`.
+A Card with enough samples for its Wrong-rate to be defined — i.e. `seen ≥ 3` (`DifficultyStore.minSeenForRanking`). Necessary but not sufficient for Practice Hardest, which also requires Wrong-rate > 0.
 
 **Wrong-last-session**:
 A per-Card sticky flag (`Card.wrongLastSession`) that is set to `true` on every Again Grade and `false` on every Good Grade. Cards never touched in any Session retain the default `false`. Surfaced by `DeckDetailView`'s "Wrong last session" row and the `WrongCardsView` list. Independent of Box state — a Card can be in Box 5 *and* have `wrongLastSession == true` if its most recent Grade was Again. The name is slightly misleading: the value reflects "the most recent Grade was Again," not "Again in the last completed Session."

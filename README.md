@@ -23,7 +23,7 @@ So I built Vohe. It's a personal project; I use it every day.
 3. **Run a session**: 5, 20, 50, 100, or All. Tap the card to flip, swipe **right** if you knew it, **left** if you didn't. Cards you're due to see come first, then ones you've never seen. A card you miss comes back later in the same session (at most twice).
 4. **Tap "Review"** on the library home to sweep the cards that are due today across *all* your decks in one go.
 5. **Enable reminders** (bell icon). Pick Random (N times per day inside a window) or Exact (specific HH:MM). Tap a reminder → a 5-word session opens on your most recently practiced deck.
-6. **Practice Hardest** once the deck has a few cards seen ≥ 3 times — Vohe ranks by wrong-rate and gives you the worst offenders (cards you've never missed are skipped).
+6. **Practice Hardest** once you've missed a card you've seen ≥ 3 times — Vohe ranks by wrong-rate and gives you the worst offenders (cards you've never missed are skipped).
 
 That's the whole loop. Open the app, swipe a handful, close it. Tomorrow, same.
 
