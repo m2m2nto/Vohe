@@ -90,6 +90,21 @@ _Avoid_: "re-queue" (use Reinforcement in prose; "re-queue" is fine when describ
 The one-shot operation (`SchedulerMigration.run`) that, on first launch after upgrading to Leitner, assigns initial `boxIndex` and `nextDue` to every existing Card based on its `DifficultyStore` wrong-rate. Distinct from SwiftData schema migration: schema migration adds the *fields*; Backfill populates them.
 _Avoid_: "migration" alone (ambiguous with schema migration).
 
+### Translation
+
+**Suggestion**:
+A `back` value produced by the on-device model (`Translator`, built on `FoundationModels`) instead of typed by the user. Offered only when adding a Card and only while the `back` field is empty. Every failure — Apple Intelligence unavailable, device ineligible, language refused, empty answer — collapses to "no Suggestion", and the user types the translation themselves.
+_Avoid_: "translation" alone (ambiguous with the `back` field of any Card).
+
+**Unvalidated**:
+A Card whose `back` is still exactly the Suggestion the model produced (`Card.needsValidation == true`). Surfaced by a "Not validated" badge on the Card face showing `card.back` and a `sparkles` marker in the cards list. Two things clear the flag: tapping **Translation looks right** mid-Session, or saving the Card from the editor — reviewing it in the editor *is* validation, whether or not the text changed.
+_Avoid_: "unconfirmed", "pending" (Pending is reserved for a captured word with no translation at all).
+
+**Validation hold**:
+The rule that an Unvalidated Card cannot be promoted past Box 1 (`LeitnerScheduler.apply(isValidated:)`), however often it's graded Good. Prevents an unchecked Suggestion from drifting out to a 60-day interval before the user has ever looked at it. Again Grades behave normally.
+
+> **Language support caveat:** Apple's on-device model officially covers only the Apple Intelligence locales, which do **not** include Croatian. Suggestions are requested with an English-language prompt that *names* the languages, so an unsupported language appears only as the subject of the request — this may work, but Apple guarantees nothing about the quality. The Validation hold exists precisely because of this.
+
 ### Stats & ranking
 
 **Stats**:

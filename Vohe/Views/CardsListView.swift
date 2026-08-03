@@ -42,12 +42,12 @@ struct CardsListView: View {
             }
         }
         .sheet(isPresented: $addingCard) {
-            CardEditorSheet(deck: deck, mode: .add) { front, back in
-                addCard(front: front, back: back)
+            CardEditorSheet(deck: deck, mode: .add) { front, back, needsValidation in
+                addCard(front: front, back: back, needsValidation: needsValidation)
             }
         }
         .sheet(item: $editingCard) { card in
-            CardEditorSheet(deck: deck, mode: .edit(card)) { front, back in
+            CardEditorSheet(deck: deck, mode: .edit(card)) { front, back, _ in
                 update(card: card, front: front, back: back)
             }
         }
@@ -64,8 +64,9 @@ struct CardsListView: View {
         }
     }
 
-    private func addCard(front: String, back: String) {
+    private func addCard(front: String, back: String, needsValidation: Bool) {
         let card = Card(front: front, back: back)
+        card.needsValidation = needsValidation
         card.deck = deck
         context.insert(card)
         try? context.save()
@@ -73,9 +74,14 @@ struct CardsListView: View {
     }
 
     private func update(card: Card, front: String, back: String) {
+        let wasUnvalidated = card.needsValidation
+        card.needsValidation = false
         let oldFront = card.front
         let oldBack = card.back
-        guard oldFront != front || oldBack != back else { return }
+        guard oldFront != front || oldBack != back else {
+            if wasUnvalidated { try? context.save() }
+            return
+        }
         card.front = front
         card.back = back
         try? context.save()
@@ -120,6 +126,12 @@ private struct CardRow: View {
                     .foregroundStyle(.secondary)
                 Text(card.back)
                     .foregroundStyle(.secondary)
+                if card.needsValidation {
+                    Image(systemName: "sparkles")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .accessibilityLabel("Suggested translation, not yet validated")
+                }
             }
         }
         .padding(.vertical, 2)

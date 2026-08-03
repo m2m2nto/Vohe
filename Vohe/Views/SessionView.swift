@@ -91,7 +91,7 @@ struct SessionView: View {
         }
         .sheet(item: $editingCard) { card in
             if let cardDeck = card.deck {
-                CardEditorSheet(deck: cardDeck, mode: .edit(card)) { front, back in
+                CardEditorSheet(deck: cardDeck, mode: .edit(card)) { front, back, _ in
                     updateCard(card, front: front, back: back)
                 }
             }
@@ -170,11 +170,27 @@ struct SessionView: View {
         }
     }
 
+    private var currentCard: Card? {
+        index < order.count ? order[index] : nil
+    }
+
     private var footer: some View {
-        Text(isFlipped ? "Swipe right if you knew it, left if not" : "Tap the card to reveal")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
+        VStack(spacing: 12) {
+            if isFlipped, let card = currentCard, card.needsValidation {
+                Button {
+                    card.needsValidation = false
+                    try? context.save()
+                } label: {
+                    Label("Translation looks right", systemImage: "checkmark.seal")
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+            }
+            Text(isFlipped ? "Swipe right if you knew it, left if not" : "Tap the card to reveal")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
     }
 
     private var swipeGesture: some Gesture {
@@ -252,7 +268,8 @@ struct SessionView: View {
         if !gradedThisSession.contains(card.id) {
             let (box, due) = LeitnerScheduler.apply(
                 grade: wasCorrect ? .good : .again,
-                currentBox: card.boxIndex
+                currentBox: card.boxIndex,
+                isValidated: !card.needsValidation
             )
             card.boxIndex = box
             card.nextDue = due
@@ -350,9 +367,14 @@ struct SessionView: View {
     }
 
     private func updateCard(_ card: Card, front: String, back: String) {
+        let wasUnvalidated = card.needsValidation
+        card.needsValidation = false
         let oldFront = card.front
         let oldBack = card.back
-        guard oldFront != front || oldBack != back else { return }
+        guard oldFront != front || oldBack != back else {
+            if wasUnvalidated { try? context.save() }
+            return
+        }
         card.front = front
         card.back = back
         try? context.save()
@@ -378,11 +400,16 @@ private struct FlashCard: View {
     private var frontText: String { inverted ? card.back : card.front }
     private var backText: String { inverted ? card.front : card.back }
 
+    // The suggested text is always `card.back`, which sits on the revealed face
+    // normally and on the front face when the session is inverted.
+    private var flagsFront: Bool { card.needsValidation && inverted }
+    private var flagsBack: Bool { card.needsValidation && !inverted }
+
     var body: some View {
         ZStack {
-            face(text: frontText, accent: false)
+            face(text: frontText, accent: false, flagged: flagsFront)
                 .opacity(isFlipped ? 0 : 1)
-            face(text: backText, accent: true)
+            face(text: backText, accent: true, flagged: flagsBack)
                 .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
                 .opacity(isFlipped ? 1 : 0)
         }
@@ -390,7 +417,7 @@ private struct FlashCard: View {
         .animation(.spring(duration: 0.45), value: isFlipped)
     }
 
-    private func face(text: String, accent: Bool) -> some View {
+    private func face(text: String, accent: Bool, flagged: Bool) -> some View {
         Text(text)
             .font(.system(size: 38, weight: .semibold, design: .rounded))
             .multilineTextAlignment(.center)
@@ -402,6 +429,18 @@ private struct FlashCard: View {
                 RoundedRectangle(cornerRadius: 24)
                     .strokeBorder(accent ? Color.accentColor.opacity(0.4) : Color.gray.opacity(0.15), lineWidth: 1)
             )
+            .overlay(alignment: .bottom) {
+                if flagged {
+                    Label("Not validated", systemImage: "sparkles")
+                        .font(.caption.weight(.medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.orange.opacity(0.15))
+                        .foregroundStyle(.orange)
+                        .clipShape(Capsule())
+                        .padding(.bottom, 14)
+                }
+            }
             .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
     }
 }

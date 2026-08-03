@@ -55,6 +55,40 @@ final class LeitnerSchedulerTests: XCTestCase {
         XCTAssertEqual(due, date(2026, 5, 24, 0, 0))
     }
 
+    // An unvalidated card can't be promoted past box 1, however often it's
+    // graded Good — an unconfirmed suggestion must not drift out to 60 days.
+    func testUnvalidatedCardIsHeldAtBox1() {
+        let now = date(2026, 5, 23, 12)
+        for currentBox in 0...5 {
+            let (box, due) = LeitnerScheduler.apply(
+                grade: .good, currentBox: currentBox, isValidated: false,
+                now: now, calendar: calendar
+            )
+            XCTAssertEqual(box, 1, "from box \(currentBox)")
+            XCTAssertEqual(due, date(2026, 5, 24, 0, 0), "from box \(currentBox)")
+        }
+    }
+
+    // Again on an unvalidated card behaves exactly as it does on a validated one.
+    func testUnvalidatedAgainStillResetsToBox1() {
+        let now = date(2026, 5, 23, 12)
+        let (box, due) = LeitnerScheduler.apply(
+            grade: .again, currentBox: 4, isValidated: false, now: now, calendar: calendar
+        )
+        XCTAssertEqual(box, 1)
+        XCTAssertEqual(due, date(2026, 5, 24, 0, 0))
+    }
+
+    // Validating unblocks normal promotion from where the card was held.
+    func testValidatedCardPromotesNormallyAfterHold() {
+        let now = date(2026, 5, 23, 12)
+        let (box, due) = LeitnerScheduler.apply(
+            grade: .good, currentBox: 1, isValidated: true, now: now, calendar: calendar
+        )
+        XCTAssertEqual(box, 2)
+        XCTAssertEqual(due, date(2026, 5, 26, 0, 0)) // box 2 = +3d
+    }
+
     // isDue helper sanity
     func testIsDue() {
         let now = date(2026, 5, 23, 12)
