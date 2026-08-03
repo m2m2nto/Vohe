@@ -12,19 +12,25 @@ enum LeitnerScheduler {
     /// Apply a grade and return the new (box, dueDate).
     /// Due dates are anchored to the local start-of-day so a card reviewed
     /// at 23:55 becomes due at 00:00 the next interval's day boundary.
+    ///
+    /// An unvalidated card (`isValidated == false`) is held at box 1 no matter
+    /// how often it's graded Good, so an unconfirmed machine translation can't
+    /// drift out to a 60-day interval before the user has looked at it.
     static func apply(
         grade: Grade,
         currentBox: Int,
+        isValidated: Bool = true,
         now: Date = .now,
         calendar: Calendar = .current
     ) -> (box: Int, due: Date) {
-        let newBox: Int
+        var newBox: Int
         switch grade {
         case .again:
             newBox = 1
         case .good:
             newBox = min(currentBox + 1, maxBox)
         }
+        if !isValidated { newBox = min(newBox, 1) }
         let due = dueDate(from: now, intervalDays: intervalsByBox[newBox], calendar: calendar)
         return (newBox, due)
     }

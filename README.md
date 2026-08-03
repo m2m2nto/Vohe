@@ -36,6 +36,7 @@ That's the whole loop. Open the app, swipe a handful, close it. Tomorrow, same.
 - **Pause & resume** up to 5 in-progress sessions.
 - **Spaced repetition** (5-box Leitner, intervals 1 / 3 / 7 / 21 / 60 days): every card carries its own box and due date. Knew it → the card moves up a box and disappears for longer; missed it → back to box 1, due tomorrow, and re-queued inside the current session.
 - **"Review" row** on the library home: everything due today across all decks, in one session. It's deliberately ephemeral — no score is recorded, and the count is hidden once it passes 100 so it never becomes a guilt counter.
+- **On-device translation suggestions**: when you add a card and leave the translation empty, Apple's on-device model proposes one. The card is then tagged "Not validated" until you confirm it — and while tagged it can't climb past box 1, so an unchecked suggestion never drifts out to a 60-day interval. Confirm with **Translation looks right** during a session, or just save the card from the editor. Nothing is sent off the device, and if Apple Intelligence is unavailable the field simply stays empty. **Note:** Apple's model doesn't officially support Croatian, so suggestions on a Croatian deck may be poor or absent — that's exactly what the tag is for.
 - **Difficulty tracking** per card (seen / wrong counts), stored in a user-visible JSON file at `Documents/difficulty.json` so it survives backups and can be hand-edited or moved to iCloud Drive via the Files app.
 - **Session history with detail view**: tap any past session to see duration and the exact words you got wrong.
 - **Local notifications**, fully configurable, with a "tap to start a quick 5-word session" handoff.
@@ -96,7 +97,8 @@ Vohe/
   VoheApp.swift          @main entry; runs the one-shot scheduler backfill
   Models/                SwiftData @Model types (Deck, Card, SessionResult, PausedSession)
   Services/              DeckParser, DeckFileStore, DifficultyStore, LeitnerScheduler,
-                         SchedulerMigration, ReminderScheduler, NotificationRouter
+                         SchedulerMigration, ReminderScheduler, NotificationRouter,
+                         Translator
   Views/                 LibraryView, DeckDetailView, CardsListView, CardEditorSheet,
                          SessionView, ResultsView, SessionDetailView (+ WrongCardsView),
                          MinuteIntervalDatePicker

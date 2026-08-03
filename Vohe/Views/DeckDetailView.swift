@@ -147,8 +147,8 @@ struct DeckDetailView: View {
             try? DeckFileStore.writeIfMissing(deck)
         }
         .sheet(isPresented: $addingCard) {
-            CardEditorSheet(deck: deck, mode: .add) { front, back in
-                addCard(front: front, back: back)
+            CardEditorSheet(deck: deck, mode: .add) { front, back, needsValidation in
+                addCard(front: front, back: back, needsValidation: needsValidation)
             }
         }
         .fullScreenCover(isPresented: $sessionActive) {
@@ -206,8 +206,9 @@ struct DeckDetailView: View {
         }
     }
 
-    private func addCard(front: String, back: String) {
+    private func addCard(front: String, back: String, needsValidation: Bool) {
         let card = Card(front: front, back: back)
+        card.needsValidation = needsValidation
         card.deck = deck
         context.insert(card)
         try? context.save()
