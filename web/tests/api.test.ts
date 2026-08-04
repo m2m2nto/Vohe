@@ -48,20 +48,24 @@ test("submissions are trimmed, de-duplicated, and kept in order", () => {
 test("an entry the app's parser could not read back is reported, not imported", () => {
   const parsed = parseSubmissionsBody({
     entries: [
-      { word: "well-being", translation: "benessere" },
+      { word: "cane - gatto", translation: "pas" },
       { word: "", translation: "niente" },
       { word: "#pas", translation: "cane" },
       { word: "pas", translation: "" },
+      { word: "well-being", translation: "benessere" },
       { word: "gatto", translation: "mačka" },
     ],
   });
   assert.ok(!("error" in parsed));
-  assert.deepEqual(parsed.entries, [{ word: "gatto", translation: "mačka" }]);
+  assert.deepEqual(parsed.entries, [
+    { word: "well-being", translation: "benessere" },
+    { word: "gatto", translation: "mačka" },
+  ]);
   assert.deepEqual(
     parsed.invalid.map((i) => i.word),
-    ["well-being", "", "#pas", "pas"],
+    ["cane - gatto", "", "#pas", "pas"],
   );
-  assert.match(parsed.invalid[0].reason, /hyphen/);
+  assert.match(parsed.invalid[0].reason, / - /);
 });
 
 test("a malformed body is rejected as a whole", () => {

@@ -189,8 +189,9 @@ export async function rejectWord(formData: FormData) {
 }
 
 /**
- * Appends pasted "word - translation" lines. A leading header line matching the
- * deck's own language pair is ignored, so a whole .txt file can be pasted.
+ * Appends pasted "word - translation" lines; the spaces around the hyphen mark
+ * the split, so either side may contain hyphens. A leading header line matching
+ * the deck's own language pair is ignored, so a whole .txt file can be pasted.
  * All-or-nothing: one bad line rejects the whole paste.
  */
 export async function importEntries(formData: FormData) {
@@ -216,21 +217,6 @@ export async function importEntries(formData: FormData) {
   const header = `${deck.language1}-${deck.language2}`.toLowerCase();
   const first = lines[0].replace(/\s*-\s*/, "-").toLowerCase();
   const body = first === header ? lines.slice(1) : lines;
-
-  // "well-being - benessere" would silently import as "well" / "being - benessere",
-  // because the app splits on the first hyphen. Reject instead of corrupting.
-  const ambiguous = body.find((line) => {
-    const spaced = line.indexOf(" - ");
-    return spaced !== -1 && line.indexOf("-") !== spaced + 1;
-  });
-  if (ambiguous) {
-    redirect(
-      deckPath(
-        deckId,
-        `Ambiguous line: "${ambiguous}" — the word side cannot contain a hyphen.`,
-      ),
-    );
-  }
 
   let parsed;
   try {

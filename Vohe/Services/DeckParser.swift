@@ -36,13 +36,13 @@ enum DeckParser {
         }
 
         guard let header = usable.first else { throw ParseError.empty }
-        guard let (lang1, lang2) = splitOnFirstHyphen(header.1) else {
+        guard let (lang1, lang2) = splitPair(header.1) else {
             throw ParseError.malformedHeader(header.1)
         }
 
         var pairs: [(front: String, back: String)] = []
         for (lineNumber, line) in usable.dropFirst() {
-            guard let (front, back) = splitOnFirstHyphen(line) else {
+            guard let (front, back) = splitPair(line) else {
                 throw ParseError.malformedLine(lineNumber: lineNumber, content: line)
             }
             pairs.append((front, back))
@@ -52,10 +52,14 @@ enum DeckParser {
         return ParsedDeck(language1: lang1, language2: lang2, pairs: pairs)
     }
 
-    private static func splitOnFirstHyphen(_ s: String) -> (String, String)? {
-        guard let idx = s.firstIndex(of: "-") else { return nil }
-        let left = s[..<idx].trimmingCharacters(in: .whitespaces)
-        let right = s[s.index(after: idx)...].trimmingCharacters(in: .whitespaces)
+    /// Splits on the first " - " so a word may itself contain hyphens
+    /// ("tako-tako - cosi-cosi"). A line without a spaced hyphen falls back to
+    /// the first bare one, which keeps older files ("cane-pas") readable.
+    private static func splitPair(_ s: String) -> (String, String)? {
+        let separator = s.range(of: " - ") ?? s.range(of: "-")
+        guard let separator else { return nil }
+        let left = s[..<separator.lowerBound].trimmingCharacters(in: .whitespaces)
+        let right = s[separator.upperBound...].trimmingCharacters(in: .whitespaces)
         guard !left.isEmpty, !right.isEmpty else { return nil }
         return (left, right)
     }

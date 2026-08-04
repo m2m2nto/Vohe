@@ -161,12 +161,13 @@ export default async function DeckPage({
         <textarea
           name="text"
           aria-label="Words to import"
-          placeholder={`ciao - bok\ngrazie - hvala`}
+          placeholder={`ciao - bok\ngrazie - hvala\ncosì-così - tako-tako`}
         />
         <p className="hint">
-          One <code>word - translation</code> per line; appended to the end.
-          Blank lines and <code>#</code> comments are ignored, and a first line
-          reading <code>
+          One <code>word - translation</code> per line; appended to the end. The
+          spaces around the hyphen mark the split, so both sides may contain
+          hyphens (<code>così-così - tako-tako</code>). Blank lines and{" "}
+          <code>#</code> comments are ignored, and a first line reading <code>
             {deck.language1}-{deck.language2}
           </code>{" "}
           is skipped, so a whole .txt file can be pasted. Nothing is imported if

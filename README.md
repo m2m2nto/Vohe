@@ -51,9 +51,9 @@ word-translation
 ```
 
 - First line: language pair, hyphen-separated.
-- Each subsequent line: `word - translation`. Spaces around the hyphen are fine.
+- Each subsequent line: `word - translation`. The spaces around the hyphen mark the split, so both sides may contain hyphens (`così-così - tako-tako`). A line with no spaced hyphen splits on the first bare one (`cane-pas`).
 - Blank lines and lines starting with `#` are ignored.
-- A literal `-` inside a word isn't supported (parser splits on the first hyphen).
+- A word cannot contain a spaced hyphen, since that is the separator itself.
 
 Example header + first lines:
 

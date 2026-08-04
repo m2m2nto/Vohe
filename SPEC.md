@@ -29,8 +29,8 @@ Personal iOS app to memorize vocabulary in new languages via flashcards. Install
 ## File Format (Strict)
 - UTF-8 plain text, `.txt` extension.
 - Line 1: `language1-language2` (e.g. `Italian-Croatian`). These label the front/back of the cards.
-- Lines 2+: `word-translation` (one per line). Multiple translations: comma-separated within the translation field (e.g. `cane-pas, kuca`).
-- Separator is a literal hyphen `-`. Entries containing hyphens are **not supported** in v1.
+- Lines 2+: `word - translation` (one per line). Multiple translations: comma-separated within the translation field (e.g. `cane - pas, kuca`).
+- Separator is the first spaced hyphen ` - `, falling back to the first bare `-` on lines that have no spaced one (`cane-pas`). Words containing hyphens are therefore supported (`così-così - tako-tako`); a word containing ` - ` is not.
 - Blank lines and lines starting with `#` are ignored.
 - Validation on import: reject and show error if line 1 is malformed or fewer than 1 vocabulary line.
 

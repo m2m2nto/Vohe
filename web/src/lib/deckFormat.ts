@@ -1,7 +1,8 @@
 // Mirror of Vohe/Services/DeckParser.swift. Any change here must keep the
 // exported .txt readable by the iOS app's parser:
 //   line 1        -> "language1-language2"
-//   lines 2+      -> "word-translation", split on the FIRST hyphen
+//   lines 2+      -> "word - translation", split on the first SPACED hyphen,
+//                    falling back to the first bare hyphen ("word-translation")
 //   blank lines and lines starting with "#" are ignored
 //   both sides are trimmed and must be non-empty
 
@@ -13,11 +14,17 @@ export type ParsedDeck = {
   pairs: Pair[];
 };
 
-function splitOnFirstHyphen(s: string): [string, string] | null {
-  const i = s.indexOf("-");
+/**
+ * Splits on the first " - " so a word may itself contain hyphens
+ * ("tako-tako - cosi-cosi"). A line without a spaced hyphen falls back to the
+ * first bare one, which keeps older files ("cane-pas") readable.
+ */
+function splitPair(s: string): [string, string] | null {
+  const spaced = s.indexOf(" - ");
+  const i = spaced === -1 ? s.indexOf("-") : spaced;
   if (i === -1) return null;
   const left = s.slice(0, i).trim();
-  const right = s.slice(i + 1).trim();
+  const right = s.slice(i + (spaced === -1 ? 1 : 3)).trim();
   if (!left || !right) return null;
   return [left, right];
 }
@@ -34,7 +41,7 @@ export function parseDeckText(text: string): ParsedDeck {
   const header = usable[0];
   if (!header) throw new Error("The file is empty.");
 
-  const languages = splitOnFirstHyphen(header.content);
+  const languages = splitPair(header.content);
   if (!languages) {
     throw new Error(
       `First line must be 'language1-language2'. Got: "${header.content}"`,
@@ -43,7 +50,7 @@ export function parseDeckText(text: string): ParsedDeck {
 
   const pairs: Pair[] = [];
   for (const line of usable.slice(1)) {
-    const pair = splitOnFirstHyphen(line.content);
+    const pair = splitPair(line.content);
     if (!pair) {
       throw new Error(
         `Line ${line.lineNumber} is not 'word-translation': "${line.content}"`,
@@ -78,17 +85,18 @@ export function validateLanguage(label: string, value: string): string | null {
 }
 
 /**
- * The word is everything before the first hyphen, so a word containing "-"
- * would be silently truncated on re-import. The translation is the remainder
- * of the line and may contain hyphens.
+ * The word is everything before the first " - ", so hyphens inside it are fine
+ * ("tako-tako"); a spaced hyphen is not, as it would move the split and
+ * truncate the word on re-import. The translation is the rest of the line and
+ * has no such limit.
  */
 export function validateEntry(word: string, translation: string): string | null {
   const w = word.trim();
   const t = translation.trim();
   if (!w) return "Word is required.";
   if (!t) return "Translation is required.";
-  if (w.includes("-")) {
-    return `The word "${w}" contains a hyphen; the app's parser splits on the first hyphen, so it is not supported.`;
+  if (w.includes(" - ")) {
+    return `The word "${w}" contains " - ", which separates the word from its translation, so it is not supported.`;
   }
   if (w.startsWith("#")) return `The word "${w}" cannot start with "#".`;
   if (/[\r\n]/.test(w) || /[\r\n]/.test(t)) {

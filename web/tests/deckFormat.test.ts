@@ -33,11 +33,24 @@ test("parses the shape documented in SPEC.md", () => {
   ]);
 });
 
-test("splits on the first hyphen only", () => {
+test("splits on the first spaced hyphen, else the first bare one", () => {
   const deck = parseDeckText("A-B\nlagan - facile/leggero\nne - non / no");
   assert.deepEqual(deck.pairs[0], { word: "lagan", translation: "facile/leggero" });
   const multi = parseDeckText("A-B\ncane - pas-tu");
   assert.deepEqual(multi.pairs[0], { word: "cane", translation: "pas-tu" });
+  const bare = parseDeckText("A-B\ncane-pas");
+  assert.deepEqual(bare.pairs[0], { word: "cane", translation: "pas" });
+});
+
+test("a word may contain hyphens when the line has a spaced separator", () => {
+  const deck = parseDeckText("A-B\ntako-tako - cosi-cosi\nwell-being - benessere");
+  assert.deepEqual(deck.pairs, [
+    { word: "tako-tako", translation: "cosi-cosi" },
+    { word: "well-being", translation: "benessere" },
+  ]);
+  // Only the first spaced hyphen splits; later ones stay in the translation.
+  const extra = parseDeckText("A-B\ntako-tako - cosi - cosi");
+  assert.deepEqual(extra.pairs[0], { word: "tako-tako", translation: "cosi - cosi" });
 });
 
 test("rejects malformed input", () => {
@@ -51,7 +64,8 @@ test("rejects malformed input", () => {
 test("validation guards what the app's parser cannot represent", () => {
   assert.equal(validateEntry("cane", "pas"), null);
   assert.equal(validateEntry("cane", "pas-tu"), null);
-  assert.match(validateEntry("well-being", "benessere") ?? "", /hyphen/);
+  assert.equal(validateEntry("well-being", "benessere"), null);
+  assert.match(validateEntry("cane - gatto", "pas") ?? "", / - /);
   assert.match(validateEntry("", "pas") ?? "", /required/);
   assert.match(validateEntry("#cane", "pas") ?? "", /#/);
   assert.equal(validateLanguage("Language 1", "Italian"), null);
@@ -62,9 +76,15 @@ test("serialize produces text the parser reads back identically", () => {
   const deck = {
     language1: "Italian",
     language2: "Croatian",
-    pairs: [{ word: "cane", translation: "pas" }],
+    pairs: [
+      { word: "cane", translation: "pas" },
+      { word: "così-così", translation: "tako-tako" },
+    ],
   };
-  assert.equal(serializeDeck(deck), "Italian-Croatian\ncane - pas\n");
+  assert.equal(
+    serializeDeck(deck),
+    "Italian-Croatian\ncane - pas\ncosì-così - tako-tako\n",
+  );
   assert.deepEqual(parseDeckText(serializeDeck(deck)), deck);
 });
 

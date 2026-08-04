@@ -113,10 +113,12 @@ curl -H "Authorization: Bearer $API_TOKEN" https://your-app.vercel.app/api/decks
 
 ## Format rules the editor enforces
 
-Because the app splits each line on the **first** hyphen:
+Because the app splits each line on the first **spaced** hyphen ` - ` (falling
+back to the first bare `-` when there is none):
 
-- the word side may not contain `-` (the translation side may: `cane - pas-tu`);
-- neither language label may contain `-`;
+- both sides may contain `-` (`così-così - tako-tako`);
+- the word side may not contain ` - `, which is the separator itself;
+- neither language label may contain `-`, since the header line has no spaces;
 - nothing may start with `#` (comment) or be empty.
 
 Pasted text is rejected as a whole if any line breaks these rules, so a bad
