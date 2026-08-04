@@ -65,6 +65,10 @@ zelena - verde
 domaća zadaća - compiti
 ```
 
+## Editing decks on the web (optional)
+
+[`web/`](web/README.md) is a small password-protected Next.js app, deployed on Vercel, that keeps dictionaries in Postgres and exports each one as a `.txt` in exactly the format above. Useful for typing words on a laptop; the phone still imports a file, so the app itself is unchanged.
+
 ## Building it on your iPhone
 
 You need:
@@ -104,6 +108,7 @@ Vohe/
                          MinuteIntervalDatePicker
 VoheTests/               unit tests for the scheduler and the backfill
 samples/                 example vocabulary files
+web/                     optional web editor for decks (Next.js on Vercel) — see web/README.md
 SPEC.md                  functional spec (v1 + supersede notes)
 CONTEXT.md               domain glossary — the words used in code, specs, and PRs
 docs/                    ideas / specs / plans per feature
