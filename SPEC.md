@@ -55,7 +55,8 @@ Per-card historical stats (`seen` / `wrong`) live outside SwiftData, in `Documen
 - Shows deck name (tap to rename), language pair, card count (tap → cards list), count of wrong-last-session cards (tap → wrong-cards list).
 - Session section: slot picker (5 / 20 / 50 / 100 / All), "Inverted (show <language2> first)" toggle, "Start Session", and "Practice Hardest" (enabled once the deck holds at least one card seen ≥ 3 times that you've missed at least once).
 - List of last 5 session results; tap one → Session Detail (duration + missed words).
-- Toolbar: `+` add card; Share to export the deck's `.txt` mirror. Deck deletion happens from Library (swipe).
+- "Delete Deck" at the bottom, behind a confirmation. Removes the deck, its cards, its session history and its paused session from this device only — a linked shared dictionary is left untouched on the server. Also available by swiping the row in Library.
+- Toolbar: `+` add card; Share to export the deck's `.txt` mirror.
 
 ### 3. Flashcard Session
 - One card at a time, centered.

@@ -4,6 +4,7 @@ import SwiftData
 struct DeckDetailView: View {
     @Bindable var deck: Deck
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
     @Query private var allDecks: [Deck]
     @State private var inverted = false
     @State private var wordCount: Int = 20
@@ -16,6 +17,7 @@ struct DeckDetailView: View {
     @State private var backendSettings = BackendSettings.load()
     @State private var syncing = false
     @State private var syncMessage: String?
+    @State private var confirmingDelete = false
 
     static let wordCountOptions: [(label: String, value: Int)] = [
         ("5", 5), ("20", 20), ("50", 50), ("100", 100), ("All", 0)
@@ -143,6 +145,14 @@ struct DeckDetailView: View {
                     }
                 }
             }
+
+            Section {
+                Button(role: .destructive) {
+                    confirmingDelete = true
+                } label: {
+                    Label("Delete Deck", systemImage: "trash")
+                }
+            }
         }
         .navigationTitle(deck.name)
         .navigationBarTitleDisplayMode(.inline)
@@ -203,6 +213,34 @@ struct DeckDetailView: View {
         } message: {
             Text(nameIsTaken ? "Another deck already uses that name." : "Enter a new name for this deck.")
         }
+        .confirmationDialog(
+            "Delete \"\(deck.name)\"?",
+            isPresented: $confirmingDelete,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Deck", role: .destructive) { deleteDeck() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(deleteWarning)
+        }
+    }
+
+    private var deleteWarning: String {
+        let count = deck.cards.count
+        var text = "\(count) card\(count == 1 ? "" : "s"), their practice history and any paused session are removed from this iPhone."
+        if deck.isLinked {
+            text += " The shared dictionary on the server is not affected."
+        }
+        return text
+    }
+
+    /// Removes the deck from this device only — same operation as swiping the
+    /// row away in Library. Popping first keeps this view from redrawing a deck
+    /// that no longer exists.
+    private func deleteDeck() {
+        dismiss()
+        DeckFileStore.remove(deck)
+        context.delete(deck)
     }
 
     /// Everything the shared dictionary adds to a deck: where its words came
