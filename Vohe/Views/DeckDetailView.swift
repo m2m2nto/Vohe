@@ -13,6 +13,9 @@ struct DeckDetailView: View {
     @State private var fileError: String?
     @State private var renaming = false
     @State private var renameText = ""
+    @State private var backendSettings = BackendSettings.load()
+    @State private var syncing = false
+    @State private var syncMessage: String?
 
     static let wordCountOptions: [(label: String, value: Int)] = [
         ("5", 5), ("20", 20), ("50", 50), ("100", 100), ("All", 0)
@@ -31,6 +34,14 @@ struct DeckDetailView: View {
 
     private var recentSessions: [SessionResult] {
         Array(deck.sessions.sorted(by: { $0.completedAt > $1.completedAt }).prefix(5))
+    }
+
+    private var unsubmittedCards: [Card] {
+        DictionarySync.cardsNeedingSubmission(in: deck)
+    }
+
+    private var awaitingReviewCount: Int {
+        DictionarySync.cardsAwaitingReview(in: deck).count
     }
 
     var body: some View {
@@ -71,6 +82,10 @@ struct DeckDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
+
+            if deck.isLinked {
+                dictionarySection
             }
 
             Section {
@@ -168,6 +183,17 @@ struct DeckDetailView: View {
         } message: {
             Text(fileError ?? "")
         }
+        .alert(
+            "Shared Dictionary",
+            isPresented: Binding(
+                get: { syncMessage != nil },
+                set: { if !$0 { syncMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { syncMessage = nil }
+        } message: {
+            Text(syncMessage ?? "")
+        }
         .alert("Rename Deck", isPresented: $renaming) {
             TextField("Deck name", text: $renameText)
                 .autocorrectionDisabled()
@@ -176,6 +202,99 @@ struct DeckDetailView: View {
                 .disabled(renameInvalid)
         } message: {
             Text(nameIsTaken ? "Another deck already uses that name." : "Enter a new name for this deck.")
+        }
+    }
+
+    /// Everything the shared dictionary adds to a deck: where its words came
+    /// from, whether a newer version is waiting, and what this device has that
+    /// the dictionary doesn't.
+    @ViewBuilder
+    private var dictionarySection: some View {
+        Section {
+            LabeledContent("Version") {
+                if syncing {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Text("v\(deck.syncedVersion)")
+                }
+            }
+            if deck.updateAvailable {
+                Button {
+                    Task { await updateFromDictionary() }
+                } label: {
+                    Label("Update to v\(deck.latestRemoteVersion)", systemImage: "arrow.down.circle")
+                }
+                .disabled(syncing)
+            }
+            if !unsubmittedCards.isEmpty {
+                Button {
+                    Task { await sendForReview() }
+                } label: {
+                    Label(
+                        "Send \(unsubmittedCards.count) word\(unsubmittedCards.count == 1 ? "" : "s") for review",
+                        systemImage: "paperplane"
+                    )
+                }
+                .disabled(syncing || !backendSettings.isConfigured)
+            }
+        } header: {
+            Text("Shared dictionary")
+        } footer: {
+            Text(dictionaryFooter)
+        }
+    }
+
+    private var dictionaryFooter: String {
+        var lines: [String] = []
+        if !unsubmittedCards.isEmpty {
+            lines.append("\(unsubmittedCards.count) word\(unsubmittedCards.count == 1 ? " is" : "s are") only on this iPhone, or changed here. Sending them asks for them to be reviewed before they join the dictionary.")
+        }
+        if awaitingReviewCount > 0 {
+            lines.append("\(awaitingReviewCount) waiting for review — an update leaves those untouched.")
+        }
+        lines.append("Updating replaces translations you changed here unless you send them for review first. Nothing is ever deleted from this device.")
+        return lines.joined(separator: "\n\n")
+    }
+
+    private func updateFromDictionary() async {
+        guard let id = deck.remoteID else { return }
+        syncing = true
+        defer { syncing = false }
+        do {
+            let remote = try await BackendClient(settings: backendSettings).dictionary(id: id)
+            let report = DictionarySync.apply(remote, to: deck, context: context)
+            try? DeckFileStore.write(deck)
+            var parts = ["Updated to v\(remote.version)."]
+            if report.added > 0 { parts.append("\(report.added) new.") }
+            if report.updated > 0 { parts.append("\(report.updated) re-translated.") }
+            if report.approved > 0 { parts.append("\(report.approved) of yours approved.") }
+            if report.localOnly > 0 { parts.append("\(report.localOnly) only on this iPhone.") }
+            syncMessage = parts.joined(separator: " ")
+        } catch {
+            syncMessage = error.localizedDescription
+        }
+    }
+
+    private func sendForReview() async {
+        guard let id = deck.remoteID else { return }
+        let cards = unsubmittedCards
+        syncing = true
+        defer { syncing = false }
+        do {
+            let receipt = try await BackendClient(settings: backendSettings).submit(
+                cards.map { RemoteWord(word: $0.front, translation: $0.back) },
+                toDictionary: id
+            )
+            DictionarySync.markSubmitted(cards)
+            try? context.save()
+            var parts = ["\(receipt.accepted) sent for review."]
+            if receipt.alreadyPending > 0 { parts.append("\(receipt.alreadyPending) already waiting.") }
+            if !receipt.invalid.isEmpty {
+                parts.append("\(receipt.invalid.count) can't be shared: \(receipt.invalid[0].reason)")
+            }
+            syncMessage = parts.joined(separator: " ")
+        } catch {
+            syncMessage = error.localizedDescription
         }
     }
 

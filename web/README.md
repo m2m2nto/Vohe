@@ -1,24 +1,30 @@
-# Vohe Dictionaries — web editor
+# Vohe Dictionaries — web editor and backend
 
-A small password-protected Next.js app that stores Vohe dictionaries in Postgres
-and exports each one as a `.txt` file in exactly the format
-[`DeckParser.swift`](../Vohe/Services/DeckParser.swift) imports.
+A small password-protected Next.js app that stores Vohe dictionaries in Postgres,
+exports each one as a `.txt` file in exactly the format
+[`DeckParser.swift`](../Vohe/Services/DeckParser.swift) imports, and serves them
+to the iOS app over a token-authenticated JSON API.
 
-The iOS app is untouched: you edit words here, download the `.txt`, and import
-it in Vohe with the **+** button as before.
+Two ways to get words onto the phone: download the `.txt` and import it with the
+**+** button, or point the app at this server and pull dictionaries directly.
+Words added on the phone come back here as **proposals** and join the dictionary
+only once you approve them.
 
 ```
 src/lib/deckFormat.ts   mirror of DeckParser.swift (parse, serialize, validate)
-src/lib/auth.ts         single-password session cookie (HMAC-signed)
+src/lib/auth.ts         password session cookie (HMAC-signed) + API bearer token
+src/lib/api.ts          JSON API shapes and submission validation
 src/lib/db.ts           Neon Postgres queries
-src/middleware.ts       locks every route except /login
+src/proxy.ts            locks every route except /login and /api
 src/app/page.tsx        dictionary list + create
-src/app/decks/[id]/     word editor, paste-import, settings, delete
+src/app/decks/[id]/     word editor, review queue, paste-import, settings, delete
 src/app/decks/[id]/export/route.ts   the .txt download
-db/schema.sql           decks + entries
+src/app/api/decks/                   catalog, one dictionary, submissions
+db/schema.sql           decks + entries + submissions
 scripts/migrate.mjs     applies schema.sql
 scripts/seed.mjs        imports ../samples/*.txt
 tests/deckFormat.test.ts   format round-trip against the real sample files
+tests/api.test.ts          token check + submission validation
 ```
 
 ## One-time setup
@@ -38,6 +44,7 @@ environments), and copy `.env.example` to `.env.local` for local work:
 | `DATABASE_URL`   | Neon connection string (auto-set by Vercel)       |
 | `ADMIN_PASSWORD` | the password that unlocks the editor              |
 | `AUTH_SECRET`    | random 32-byte hex, signs the session cookie      |
+| `API_TOKEN`      | random 32-byte hex, what the iOS app sends to `/api/*` |
 
 ```sh
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -55,9 +62,12 @@ separate Neon branch):
 
 ```sh
 npm install
-npm run db:migrate   # creates decks + entries
+npm run db:migrate   # creates decks + entries + submissions, adds decks.version
 npm run db:seed      # imports every ../samples/*.txt, skipping decks that exist
 ```
+
+`db:migrate` is idempotent and additive — re-run it after pulling changes that
+touch `db/schema.sql`.
 
 ## Daily use
 
@@ -70,10 +80,36 @@ npm run build        # what Vercel runs
 1. Sign in with `ADMIN_PASSWORD`.
 2. Pick a dictionary, or create one (name + the two language labels).
 3. Add words one at a time, or paste a whole list into **Paste a list**.
-4. **download .txt** → open it in Vohe via **+**.
+4. Approve or reject anything sitting in **From the app — waiting for review**.
+5. **download .txt** → open it in Vohe via **+**, or just let the phone pull the
+   new version.
 
 Signing in on the iPhone works the same way: open the site in Safari, sign in,
 tap **download .txt**, then import from Files.
+
+## The app's API
+
+Every route needs `Authorization: Bearer $API_TOKEN`; without a valid token they
+answer `401`. They are the only routes not behind the password cookie.
+
+| Route | What it does |
+| ----- | ------------ |
+| `GET /api/decks` | catalog: `id`, `name`, languages, `version`, `wordCount` |
+| `GET /api/decks/:id` | one dictionary with every approved word |
+| `POST /api/decks/:id/submissions` | `{"entries":[{"word","translation"}]}` → review queue |
+
+`version` starts at 1 and increases on every approved change to a dictionary —
+adding, editing or deleting a word, approving a proposal, or renaming it. The app
+stores the version it pulled and badges the deck when the catalog shows a higher
+one; the user chooses when to take the update.
+
+Submissions never touch `entries`, so they appear in no export, no API read, and
+no other device until approved here. Re-sending a proposal that is still waiting
+is a no-op; once rejected, the same word can be proposed again.
+
+```sh
+curl -H "Authorization: Bearer $API_TOKEN" https://your-app.vercel.app/api/decks
+```
 
 ## Format rules the editor enforces
 

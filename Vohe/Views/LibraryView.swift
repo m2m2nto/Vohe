@@ -14,6 +14,8 @@ struct LibraryView: View {
     @State private var importError: String?
     @State private var showingReminderSettings = false
     @State private var activeSession: ActiveSession?
+    @State private var backendSettings = BackendSettings.load()
+    @State private var showingDictionaries = false
 
     private enum ActiveSession: Identifiable {
         case quickDeck(Deck)
@@ -116,6 +118,14 @@ struct LibraryView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        showingDictionaries = true
+                    } label: {
+                        Image(systemName: "icloud.and.arrow.down")
+                    }
+                    .accessibilityLabel("Shared dictionaries")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         showingImporter = true
                     } label: {
                         Image(systemName: "plus")
@@ -126,13 +136,18 @@ struct LibraryView: View {
             .sheet(isPresented: $showingReminderSettings) {
                 ReminderSettingsSheet(settings: $reminderSettings)
             }
+            .sheet(isPresented: $showingDictionaries) {
+                RemoteDictionariesView(settings: $backendSettings)
+            }
             .onAppear {
                 Task { await refreshReminders() }
+                Task { await refreshDictionaryVersions() }
                 handleQuickSessionRequest()
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task { await refreshReminders() }
+                    Task { await refreshDictionaryVersions() }
                     handleQuickSessionRequest()
                 }
             }
@@ -227,6 +242,16 @@ struct LibraryView: View {
         for idx in offsets {
             context.delete(paused[idx])
         }
+    }
+
+    /// Asks the backend only for versions, so a linked deck can badge that an
+    /// update is waiting. Failing (no server, no signal) is normal and silent —
+    /// nothing on this device depends on it.
+    private func refreshDictionaryVersions() async {
+        guard backendSettings.isConfigured, decks.contains(where: \.isLinked) else { return }
+        guard let catalog = try? await BackendClient(settings: backendSettings).catalog() else { return }
+        DictionarySync.noteCatalogVersions(catalog, in: decks)
+        try? context.save()
     }
 
     private func refreshReminders() async {
@@ -416,8 +441,19 @@ private struct DeckRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(deck.name)
-                .font(.headline)
+            HStack(spacing: 6) {
+                Text(deck.name)
+                    .font(.headline)
+                if deck.updateAvailable {
+                    Text("Update")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.tint, in: Capsule())
+                        .foregroundStyle(.white)
+                        .accessibilityLabel("Dictionary update available")
+                }
+            }
             HStack {
                 Text("\(deck.language1) → \(deck.language2)")
                 Spacer()

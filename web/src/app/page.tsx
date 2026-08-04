@@ -34,8 +34,17 @@ export default async function LibraryPage({
                 <Link href={`/decks/${deck.id}`}>{deck.name}</Link>
                 <span className="meta">
                   {" "}
-                  — {deck.language1}–{deck.language2}, {deck.entry_count} words
+                  — {deck.language1}–{deck.language2}, {deck.entry_count} words,
+                  v{deck.version}
                 </span>
+                {deck.pending_count > 0 && (
+                  <>
+                    {" "}
+                    <Link className="badge" href={`/decks/${deck.id}`}>
+                      {deck.pending_count} to review
+                    </Link>
+                  </>
+                )}
               </span>
               <a href={`/decks/${deck.id}/export`}>.txt</a>
             </li>

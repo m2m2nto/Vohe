@@ -20,7 +20,9 @@ export type DeckRow = {
   name: string;
   language1: string;
   language2: string;
+  version: number;
   entry_count: number;
+  pending_count: number;
 };
 
 export type EntryRow = {
@@ -30,21 +32,32 @@ export type EntryRow = {
   position: number;
 };
 
+export type SubmissionRow = {
+  id: number;
+  word: string;
+  translation: string;
+  submitted_at: string;
+  /** The approved translation this proposal would replace, when the word exists. */
+  current_translation: string | null;
+};
+
 export async function listDecks(): Promise<DeckRow[]> {
   return (await sql()`
-    select d.id, d.name, d.language1, d.language2,
-           count(e.id)::int as entry_count
+    select d.id, d.name, d.language1, d.language2, d.version,
+           (select count(*)::int from entries e where e.deck_id = d.id) as entry_count,
+           (select count(*)::int from submissions s
+             where s.deck_id = d.id and s.status = 'pending') as pending_count
     from decks d
-    left join entries e on e.deck_id = d.id
-    group by d.id
     order by d.name
   `) as DeckRow[];
 }
 
 export async function getDeck(id: number): Promise<DeckRow | null> {
   const rows = (await sql()`
-    select d.id, d.name, d.language1, d.language2,
-           (select count(*)::int from entries e where e.deck_id = d.id) as entry_count
+    select d.id, d.name, d.language1, d.language2, d.version,
+           (select count(*)::int from entries e where e.deck_id = d.id) as entry_count,
+           (select count(*)::int from submissions s
+             where s.deck_id = d.id and s.status = 'pending') as pending_count
     from decks d
     where d.id = ${id}
   `) as DeckRow[];
@@ -58,4 +71,100 @@ export async function listEntries(deckId: number): Promise<EntryRow[]> {
     where deck_id = ${deckId}
     order by position, id
   `) as EntryRow[];
+}
+
+/**
+ * Every approved change to a dictionary's words moves this number, and only
+ * this number tells the app there is something new to pull.
+ */
+export async function bumpDeckVersion(deckId: number): Promise<void> {
+  await sql()`update decks set version = version + 1 where id = ${deckId}`;
+}
+
+export async function listPendingSubmissions(
+  deckId: number,
+): Promise<SubmissionRow[]> {
+  return (await sql()`
+    select s.id, s.word, s.translation, s.submitted_at,
+           (select e.translation from entries e
+             where e.deck_id = s.deck_id and e.word = s.word
+             order by e.position, e.id limit 1) as current_translation
+    from submissions s
+    where s.deck_id = ${deckId} and s.status = 'pending'
+    order by s.submitted_at, s.id
+  `) as SubmissionRow[];
+}
+
+/**
+ * Stores proposals as pending. Duplicates of a proposal already waiting are
+ * dropped by the partial unique index, so the app can re-send freely.
+ * Returns how many rows were actually created.
+ */
+export async function insertSubmissions(
+  deckId: number,
+  entries: { word: string; translation: string }[],
+): Promise<number> {
+  const rows = (await sql().query(
+    `insert into submissions (deck_id, word, translation)
+     select $1, w, t from unnest($2::text[], $3::text[]) as u(w, t)
+     on conflict do nothing
+     returning id`,
+    [deckId, entries.map((e) => e.word), entries.map((e) => e.translation)],
+  )) as { id: number }[];
+  return rows.length;
+}
+
+/**
+ * Applies a proposal to the dictionary: replaces the translation when the word
+ * already exists, appends it otherwise, then bumps the version so the app sees
+ * an update. A no-op if the submission is no longer pending.
+ */
+export async function approveSubmission(
+  deckId: number,
+  submissionId: number,
+): Promise<void> {
+  const pending = (await sql()`
+    select word, translation from submissions
+    where id = ${submissionId} and deck_id = ${deckId} and status = 'pending'
+  `) as { word: string; translation: string }[];
+  const proposal = pending[0];
+  if (!proposal) return;
+
+  const existing = (await sql()`
+    select id from entries
+    where deck_id = ${deckId} and word = ${proposal.word}
+    order by position, id limit 1
+  `) as { id: number }[];
+
+  if (existing[0]) {
+    await sql()`
+      update entries set translation = ${proposal.translation}
+      where id = ${existing[0].id}
+    `;
+  } else {
+    await sql()`
+      insert into entries (deck_id, word, translation, position)
+      values (
+        ${deckId}, ${proposal.word}, ${proposal.translation},
+        coalesce((select max(position) + 1 from entries where deck_id = ${deckId}), 0)
+      )
+    `;
+  }
+
+  await sql()`
+    update submissions set status = 'approved', resolved_at = now()
+    where id = ${submissionId}
+  `;
+  await bumpDeckVersion(deckId);
+}
+
+/** Leaves the dictionary untouched; the word can be proposed again later. */
+export async function rejectSubmission(
+  deckId: number,
+  submissionId: number,
+): Promise<void> {
+  await sql()`
+    update submissions set status = 'rejected', resolved_at = now()
+    where id = ${submissionId} and deck_id = ${deckId} and status = 'pending'
+  `;
 }

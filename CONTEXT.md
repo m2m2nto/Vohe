@@ -105,6 +105,33 @@ The rule that an Unvalidated Card cannot be promoted past Box 1 (`LeitnerSchedul
 
 > **Language support caveat:** Apple's on-device model officially covers only the Apple Intelligence locales, which do **not** include Croatian. Suggestions are requested with an English-language prompt that *names* the languages, so an unsupported language appears only as the subject of the request — this may work, but Apple guarantees nothing about the quality. The Validation hold exists precisely because of this.
 
+### Shared dictionaries
+
+**Dictionary**:
+A word list held by the backend (`web/`), the shared counterpart of a Deck. A Dictionary has an `id`, a name, a language pair, a Version, and its approved words. Optional: a Deck may exist with no Dictionary behind it, and the app runs entirely without a backend.
+_Avoid_: using "Deck" for the server-side list, or "Dictionary" for the on-device one.
+
+**Linked**:
+A Deck that carries a Dictionary's `id` (`Deck.remoteID`). Linking happens when the Dictionary is added from the browse screen; an existing unlinked Deck of the same name is adopted rather than duplicated, so its Stats and Boxes carry over.
+_Avoid_: "synced" (a Linked Deck may be many Versions behind, on purpose).
+
+**Version**:
+A Dictionary's change counter (`decks.version`), starting at 1 and rising on every approved change to its words or labels. The Deck stores the Version it pulled (`syncedVersion`) and the highest one seen in the catalog (`latestRemoteVersion`).
+
+**Update available**:
+`latestRemoteVersion > syncedVersion` on a Linked Deck. Surfaced as an "Update" badge on the Library row and an Update button in Deck Detail. Taking the update is always the user's action — the app never rewrites words on its own.
+_Avoid_: "out of sync", "stale".
+
+**Local-only**:
+A Card in a Linked Deck that the Dictionary doesn't carry (`Card.remoteBack == nil`) — either added on the device or dropped from the Dictionary upstream. Marked with an `iphone` icon in the cards list. Updates never delete Cards, so this is how "the Dictionary lost it, you didn't" is expressed.
+
+**Proposal**:
+A word sent from the app to the backend's review queue (`submissions` table, `status = 'pending'`). A Proposal is invisible to every export, API read, and other device until approved in the editor. Approving applies it to the Dictionary and bumps the Version; rejecting leaves the Dictionary untouched and the Card local.
+_Avoid_: "upload", "push", "sync up" — nothing the app sends becomes shared by itself.
+
+**Waiting for review**:
+A Card whose current text has been sent as a Proposal (`Card.pendingReview`). An update leaves such a Card's text alone until the review lands, so pressing Update never discards the edit being reviewed. Everything else diverging from the Dictionary is replaced by it.
+
 ### Stats & ranking
 
 **Stats**:

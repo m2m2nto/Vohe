@@ -153,9 +153,18 @@ button.danger {
   gap: 12px;
 }
 
-.deck-list .meta {
+.meta {
   color: var(--muted);
   font-size: 13px;
+}
+
+.badge {
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 12px;
+  padding: 1px 8px;
+  white-space: nowrap;
 }
 
 .error {

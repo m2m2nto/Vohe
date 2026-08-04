@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, isValidSessionCookie } from "@/lib/auth";
 
 // Next 16's "proxy" convention (formerly middleware). Locks the whole app
-// behind ADMIN_PASSWORD; only /login is reachable when signed out.
+// behind ADMIN_PASSWORD; only /login is reachable when signed out. /api is
+// exempt because the iOS app authenticates per-request with API_TOKEN — every
+// route under it checks that token itself.
 export async function proxy(request: NextRequest) {
   let authorized = false;
   try {
@@ -23,5 +25,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!login|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api|login|_next/static|_next/image|favicon.ico).*)"],
 };

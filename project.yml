@@ -17,6 +17,8 @@ targets:
     platform: iOS
     sources:
       - path: Vohe
+        excludes:
+          - "**/*.template"
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "1,2"

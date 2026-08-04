@@ -9,7 +9,12 @@ import {
   createSessionCookie,
   isCorrectPassword,
 } from "@/lib/auth";
-import { sql } from "@/lib/db";
+import {
+  approveSubmission,
+  bumpDeckVersion,
+  rejectSubmission,
+  sql,
+} from "@/lib/db";
 import {
   normalizeName,
   parseDeckText,
@@ -96,6 +101,7 @@ export async function updateDeck(formData: FormData) {
     set name = ${name}, language1 = ${language1}, language2 = ${language2}
     where id = ${deckId}
   `;
+  await bumpDeckVersion(deckId);
   revalidatePath("/");
   revalidatePath(`/decks/${deckId}`);
   redirect(deckPath(deckId));
@@ -126,6 +132,7 @@ export async function addEntry(formData: FormData) {
       coalesce((select max(position) + 1 from entries where deck_id = ${deckId}), 0)
     )
   `;
+  await bumpDeckVersion(deckId);
   revalidatePath(`/decks/${deckId}`);
   redirect(deckPath(deckId));
 }
@@ -144,6 +151,7 @@ export async function updateEntry(formData: FormData) {
     set word = ${word}, translation = ${translation}
     where id = ${entryId} and deck_id = ${deckId}
   `;
+  await bumpDeckVersion(deckId);
   revalidatePath(`/decks/${deckId}`);
   redirect(deckPath(deckId));
 }
@@ -152,6 +160,30 @@ export async function deleteEntry(formData: FormData) {
   const deckId = Number(field(formData, "deckId"));
   const entryId = Number(field(formData, "entryId"));
   await sql()`delete from entries where id = ${entryId} and deck_id = ${deckId}`;
+  await bumpDeckVersion(deckId);
+  revalidatePath(`/decks/${deckId}`);
+  redirect(deckPath(deckId));
+}
+
+/**
+ * Accepts a word proposed by the iOS app: it joins the dictionary, the version
+ * moves, and every app that pulls the update gets it.
+ */
+export async function approveWord(formData: FormData) {
+  const deckId = Number(field(formData, "deckId"));
+  const submissionId = Number(field(formData, "submissionId"));
+  await approveSubmission(deckId, submissionId);
+  revalidatePath("/");
+  revalidatePath(`/decks/${deckId}`);
+  redirect(deckPath(deckId));
+}
+
+/** Declines a proposal. The dictionary is untouched; the app keeps its own copy. */
+export async function rejectWord(formData: FormData) {
+  const deckId = Number(field(formData, "deckId"));
+  const submissionId = Number(field(formData, "submissionId"));
+  await rejectSubmission(deckId, submissionId);
+  revalidatePath("/");
   revalidatePath(`/decks/${deckId}`);
   redirect(deckPath(deckId));
 }
@@ -229,6 +261,7 @@ export async function importEntries(formData: FormData) {
       parsed.pairs.map((_, i) => i),
     ],
   );
+  await bumpDeckVersion(deckId);
 
   revalidatePath(`/decks/${deckId}`);
   redirect(deckPath(deckId));

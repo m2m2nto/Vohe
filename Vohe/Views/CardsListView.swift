@@ -26,7 +26,7 @@ struct CardsListView: View {
                     Button {
                         editingCard = card
                     } label: {
-                        CardRow(card: card)
+                        CardRow(card: card, inLinkedDeck: deck.isLinked)
                     }
                     .buttonStyle(.plain)
                 }
@@ -115,6 +115,8 @@ struct CardsListView: View {
 
 private struct CardRow: View {
     let card: Card
+    /// Marks are only meaningful when the deck is linked to a dictionary.
+    let inLinkedDeck: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -131,6 +133,17 @@ private struct CardRow: View {
                         .font(.caption2)
                         .foregroundStyle(.orange)
                         .accessibilityLabel("Suggested translation, not yet validated")
+                }
+                if inLinkedDeck && card.pendingReview {
+                    Image(systemName: "clock.badge.questionmark")
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
+                        .accessibilityLabel("Waiting for review on the dictionary server")
+                } else if inLinkedDeck && card.needsSubmission {
+                    Image(systemName: "iphone")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Only on this iPhone")
                 }
             }
         }

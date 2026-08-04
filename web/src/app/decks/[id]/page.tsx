@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getDeck, listEntries } from "@/lib/db";
+import { getDeck, listEntries, listPendingSubmissions } from "@/lib/db";
 import {
   addEntry,
+  approveWord,
   deleteDeck,
   deleteEntry,
   importEntries,
   logout,
+  rejectWord,
   updateDeck,
   updateEntry,
 } from "../../actions";
@@ -30,6 +32,7 @@ export default async function DeckPage({
   if (!deck) notFound();
 
   const entries = await listEntries(deckId);
+  const pending = await listPendingSubmissions(deckId);
 
   return (
     <>
@@ -43,11 +46,51 @@ export default async function DeckPage({
         </span>
       </header>
       <p className="hint">
-        {deck.language1}–{deck.language2} · {deck.entry_count} words ·{" "}
-        <a href={`/decks/${deckId}/export`}>download .txt</a>
+        {deck.language1}–{deck.language2} · {deck.entry_count} words · version{" "}
+        {deck.version} · <a href={`/decks/${deckId}/export`}>download .txt</a>
       </p>
 
       {error && <p className="error">{error}</p>}
+
+      {pending.length > 0 && (
+        <>
+          <h2>From the app — waiting for review ({pending.length})</h2>
+          <p className="hint">
+            Words sent from Vohe on the phone. They are not part of this
+            dictionary, the exported <code>.txt</code>, or any other device
+            until you approve them.
+          </p>
+          {pending.map((submission) => (
+            <div className="row" key={submission.id}>
+              <span>{submission.word}</span>
+              <span>
+                {submission.translation}
+                {submission.current_translation !== null &&
+                  submission.current_translation !== submission.translation && (
+                    <span className="meta">
+                      {" "}
+                      (replaces &ldquo;{submission.current_translation}&rdquo;)
+                    </span>
+                  )}
+              </span>
+              <form action={approveWord}>
+                <input type="hidden" name="deckId" value={deckId} />
+                <input type="hidden" name="submissionId" value={submission.id} />
+                <button className="primary" type="submit">
+                  Approve
+                </button>
+              </form>
+              <form action={rejectWord}>
+                <input type="hidden" name="deckId" value={deckId} />
+                <input type="hidden" name="submissionId" value={submission.id} />
+                <button className="danger" type="submit">
+                  Reject
+                </button>
+              </form>
+            </div>
+          ))}
+        </>
+      )}
 
       <h2>Add a word</h2>
       <form action={addEntry} className="card">

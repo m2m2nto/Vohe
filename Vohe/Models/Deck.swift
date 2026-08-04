@@ -9,6 +9,18 @@ final class Deck {
     var language2: String
     var createdAt: Date
 
+    /// Set once the deck is linked to a dictionary on the backend; nil for
+    /// decks that only ever came from a `.txt` file.
+    var remoteID: Int? = nil
+    /// Version of the remote dictionary this deck last pulled.
+    var syncedVersion: Int = 0
+    /// Highest version seen in the catalog. Higher than `syncedVersion` means
+    /// an update is waiting; the user decides when to take it.
+    var latestRemoteVersion: Int = 0
+
+    var isLinked: Bool { remoteID != nil }
+    var updateAvailable: Bool { isLinked && latestRemoteVersion > syncedVersion }
+
     @Relationship(deleteRule: .cascade, inverse: \Card.deck)
     var cards: [Card] = []
 

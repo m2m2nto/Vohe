@@ -6,7 +6,7 @@
 Personal iOS app to memorize vocabulary in new languages via flashcards. Installed directly via Xcode (no App Store).
 
 ## Scope (v1)
-- Single user, on-device only, no backend, no iCloud sync.
+- Single user, on-device only, no backend, no iCloud sync. (Superseded: the app can now pull dictionaries from the optional [`web/`](web/README.md) backend and send words back for review — see the "Shared dictionaries" section of [`CONTEXT.md`](CONTEXT.md). It stays optional: with no server configured the app is exactly the on-device app described here.)
 - Library of multiple decks, imported from text files via the iOS Files picker.
 - Flashcard sessions with swipe scoring. (v1: wrong words carry over to the next session — superseded by per-card Leitner scheduling.)
 - UI in English. Vocabulary content is language-agnostic.

@@ -65,9 +65,23 @@ zelena - verde
 domaća zadaća - compiti
 ```
 
-## Editing decks on the web (optional)
+## Shared dictionaries on the web (optional)
 
-[`web/`](web/README.md) is a small password-protected Next.js app, deployed on Vercel, that keeps dictionaries in Postgres and exports each one as a `.txt` in exactly the format above. Useful for typing words on a laptop; the phone still imports a file, so the app itself is unchanged.
+[`web/`](web/README.md) is a small password-protected Next.js app, deployed on Vercel, that keeps dictionaries in Postgres. Useful for typing words on a laptop.
+
+You can still download a `.txt` and import it with **+**. Or connect the app to it — cloud button in the library → **Server settings** → the address and the `API_TOKEN`. To have those pre-filled on a fresh install, copy the template once (the copy is gitignored, so your token stays out of this public repo):
+
+```sh
+cp Vohe/Services/BackendDefaults.swift.template Vohe/Services/BackendDefaults.swift
+```
+
+What the connection gives you:
+
+- **Browse and add**: the cloud button lists every dictionary on the server; **Add** pulls one into a deck. A deck you already imported from a `.txt` of the same name is adopted rather than duplicated, so nothing you've practised is lost.
+- **Updates are yours to take**: when a newer version is published, the deck shows an **Update** badge. Nothing changes until you tap Update in the deck.
+- **Nothing is ever deleted from the phone.** A word removed from the dictionary stays on the device, marked "only on this iPhone" — as are words you added yourself. Practice history (box, due date, seen/wrong counts) survives every update, including when an updated translation replaces the old one.
+- **Words you add go back for review.** "Send N words for review" queues them on the server; they join the dictionary only when you approve them in the editor. A word waiting for review is never overwritten by an update.
+- **No connection, no problem.** Everything above is on-demand. Without a server, without a token, or without signal, the app behaves exactly as it always has — all decks, sessions, scheduling and reminders are local.
 
 ## Building it on your iPhone
 
@@ -102,11 +116,12 @@ Vohe/
   Models/                SwiftData @Model types (Deck, Card, SessionResult, PausedSession)
   Services/              DeckParser, DeckFileStore, DifficultyStore, LeitnerScheduler,
                          SchedulerMigration, ReminderScheduler, NotificationRouter,
-                         Translator
+                         Translator, BackendSettings, BackendClient, DictionarySync
   Views/                 LibraryView, DeckDetailView, CardsListView, CardEditorSheet,
                          SessionView, ResultsView, SessionDetailView (+ WrongCardsView),
-                         MinuteIntervalDatePicker
-VoheTests/               unit tests for the scheduler and the backfill
+                         MinuteIntervalDatePicker, RemoteDictionariesView,
+                         BackendSettingsSheet
+VoheTests/               unit tests for the scheduler, the backfill, dictionary sync
 samples/                 example vocabulary files
 web/                     optional web editor for decks (Next.js on Vercel) — see web/README.md
 SPEC.md                  functional spec (v1 + supersede notes)

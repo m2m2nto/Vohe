@@ -61,3 +61,15 @@ export function isCorrectPassword(input: string): boolean {
   if (!expected) throw new Error("ADMIN_PASSWORD is not set.");
   return constantTimeEqual(input, expected);
 }
+
+/**
+ * The iOS app authenticates with a fixed bearer token instead of the browser
+ * session cookie. No API_TOKEN configured means the API stays closed.
+ */
+export function isValidApiToken(authorization: string | null): boolean {
+  const expected = process.env.API_TOKEN;
+  if (!expected || !authorization) return false;
+  const prefix = "Bearer ";
+  if (!authorization.startsWith(prefix)) return false;
+  return constantTimeEqual(authorization.slice(prefix.length).trim(), expected);
+}

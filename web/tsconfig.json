@@ -13,6 +13,9 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    // `npm test` runs the sources through node's type stripper, which resolves
+    // no extensions — so a module shared with the tests imports "./x.ts".
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
