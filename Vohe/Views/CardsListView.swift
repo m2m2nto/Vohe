@@ -8,9 +8,20 @@ struct CardsListView: View {
     @State private var editingCard: Card?
     @State private var addingCard = false
     @State private var fileError: String?
+    @State private var searchText = ""
 
     private var sortedCards: [Card] {
         deck.cards.sorted { $0.front.localizedCaseInsensitiveCompare($1.front) == .orderedAscending }
+    }
+
+    /// Cards as displayed: sorted, then narrowed by the search box. A query
+    /// matches either language.
+    private var visibleCards: [Card] {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return sortedCards }
+        return sortedCards.filter {
+            $0.front.localizedStandardContains(query) || $0.back.localizedStandardContains(query)
+        }
     }
 
     var body: some View {
@@ -21,8 +32,10 @@ struct CardsListView: View {
                     systemImage: "rectangle.on.rectangle.slash",
                     description: Text("Tap + to add your first card.")
                 )
+            } else if visibleCards.isEmpty {
+                ContentUnavailableView.search(text: searchText)
             } else {
-                ForEach(sortedCards) { card in
+                ForEach(visibleCards) { card in
                     Button {
                         editingCard = card
                     } label: {
@@ -33,6 +46,7 @@ struct CardsListView: View {
                 .onDelete(perform: delete)
             }
         }
+        .searchable(text: $searchText, prompt: "Search both languages")
         .navigationTitle("Cards (\(deck.cards.count))")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -94,7 +108,7 @@ struct CardsListView: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        let cards = sortedCards
+        let cards = visibleCards
         for idx in offsets {
             let card = cards[idx]
             DifficultyStore.shared.remove(deckName: deck.name, front: card.front, back: card.back)
