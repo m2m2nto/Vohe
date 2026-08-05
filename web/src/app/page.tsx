@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listDecks } from "@/lib/db";
+import { SubmitButton } from "./SubmitButton";
 import { createDeck, logout } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function LibraryPage({
       <header className="bar">
         <h1>Vohe Dictionaries</h1>
         <form action={logout}>
-          <button type="submit">Sign out</button>
+          <SubmitButton>Sign out</SubmitButton>
         </form>
       </header>
 
@@ -79,9 +80,7 @@ export default async function LibraryPage({
           (<code>Italian-Croatian</code>), so neither may contain a hyphen.
         </p>
         <div>
-          <button className="primary" type="submit">
-            Create
-          </button>
+          <SubmitButton className="primary">Create</SubmitButton>
         </div>
       </form>
     </>

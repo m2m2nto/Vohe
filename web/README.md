@@ -17,6 +17,7 @@ src/lib/auth.ts         password session cookie (HMAC-signed) + API bearer token
 src/lib/api.ts          JSON API shapes and submission validation
 src/lib/db.ts           Neon Postgres queries
 src/proxy.ts            locks every route except /login and /api
+src/app/SubmitButton.tsx submit button that locks and spins while its action runs
 src/app/page.tsx        dictionary list + create
 src/app/decks/[id]/     word editor, review queue, paste-import, settings, delete
 src/app/decks/[id]/export/route.ts   the .txt download

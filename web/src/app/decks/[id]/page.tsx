@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDeck, listEntries, listPendingSubmissions } from "@/lib/db";
 import { findDuplicates, redundantEntryIds } from "@/lib/duplicates";
+import { SubmitButton } from "../../SubmitButton";
 import {
   addEntry,
   approveWord,
@@ -49,7 +50,7 @@ export default async function DeckPage({
         <span className="inline">
           <Link href="/">All dictionaries</Link>
           <form action={logout}>
-            <button type="submit">Sign out</button>
+            <SubmitButton>Sign out</SubmitButton>
           </form>
         </span>
       </header>
@@ -88,16 +89,12 @@ export default async function DeckPage({
               <form action={approveWord}>
                 <input type="hidden" name="deckId" value={deckId} />
                 <input type="hidden" name="submissionId" value={submission.id} />
-                <button className="primary" type="submit">
-                  Approve
-                </button>
+                <SubmitButton className="primary">Approve</SubmitButton>
               </form>
               <form action={rejectWord}>
                 <input type="hidden" name="deckId" value={deckId} />
                 <input type="hidden" name="submissionId" value={submission.id} />
-                <button className="danger" type="submit">
-                  Reject
-                </button>
+                <SubmitButton className="danger">Reject</SubmitButton>
               </form>
             </div>
           ))}
@@ -119,10 +116,10 @@ export default async function DeckPage({
             <form action={removeExactDuplicates} className="card">
               <input type="hidden" name="deckId" value={deckId} />
               <div className="inline">
-                <button className="primary" type="submit">
+                <SubmitButton className="primary">
                   Remove {removableRows} identical{" "}
                   {removableRows === 1 ? "copy" : "copies"}
-                </button>
+                </SubmitButton>
                 <span className="meta">
                   {exactCopies} {exactCopies === 1 ? "word" : "words"} repeated
                   with the same translation — the first row stays, nothing is
@@ -156,7 +153,7 @@ export default async function DeckPage({
                     defaultValue={entry.translation}
                     aria-label={`${deck.language2} translation of ${group.word}`}
                   />
-                  <button type="submit">Keep this one</button>
+                  <SubmitButton>Keep this one</SubmitButton>
                 </form>
               ))}
             </div>
@@ -180,9 +177,7 @@ export default async function DeckPage({
             placeholder={deck.language2}
             aria-label={deck.language2}
           />
-          <button className="primary" type="submit">
-            Add
-          </button>
+          <SubmitButton className="primary">Add</SubmitButton>
         </div>
       </form>
 
@@ -212,14 +207,12 @@ export default async function DeckPage({
               defaultValue={entry.translation}
               aria-label={`${deck.language2} translation`}
             />
-            <button type="submit">Save</button>
+            <SubmitButton>Save</SubmitButton>
           </form>
           <form action={deleteEntry}>
             <input type="hidden" name="deckId" value={deckId} />
             <input type="hidden" name="entryId" value={entry.id} />
-            <button className="danger" type="submit">
-              Delete
-            </button>
+            <SubmitButton className="danger">Delete</SubmitButton>
           </form>
         </div>
       ))}
@@ -246,9 +239,7 @@ export default async function DeckPage({
           any line is invalid.
         </p>
         <div>
-          <button className="primary" type="submit">
-            Import
-          </button>
+          <SubmitButton className="primary">Import</SubmitButton>
         </div>
       </form>
 
@@ -280,7 +271,7 @@ export default async function DeckPage({
           </span>
         </div>
         <div>
-          <button type="submit">Save settings</button>
+          <SubmitButton>Save settings</SubmitButton>
         </div>
       </form>
 
@@ -297,9 +288,7 @@ export default async function DeckPage({
             type="text"
             style={{ maxWidth: 160 }}
           />
-          <button className="danger" type="submit">
-            Delete dictionary
-          </button>
+          <SubmitButton className="danger">Delete dictionary</SubmitButton>
         </div>
       </form>
     </>

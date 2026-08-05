@@ -1,3 +1,4 @@
+import { SubmitButton } from "../SubmitButton";
 import { login } from "../actions";
 
 export default async function LoginPage({
@@ -19,9 +20,7 @@ export default async function LoginPage({
         <label htmlFor="password">Password</label>
         <input id="password" name="password" type="password" autoFocus />
         <div>
-          <button className="primary" type="submit">
-            Sign in
-          </button>
+          <SubmitButton className="primary">Sign in</SubmitButton>
         </div>
       </form>
     </>
