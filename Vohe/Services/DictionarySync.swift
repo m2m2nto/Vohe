@@ -102,14 +102,21 @@ enum DictionarySync {
         return report
     }
 
-    /// The cards a "send for review" would carry: words the dictionary doesn't
-    /// have, and translations that no longer match the approved one. Cards
-    /// already waiting are included, so re-sending re-opens a rejected proposal
-    /// (the backend ignores duplicates of one still pending).
+    /// Everything the dictionary doesn't carry as it stands: words it doesn't
+    /// have, and translations that no longer match the approved one — whether or
+    /// not they have already been sent.
     static func cardsNeedingSubmission(in deck: Deck) -> [Card] {
         deck.cards
             .filter(\.needsSubmission)
             .sorted { $0.front < $1.front }
+    }
+
+    /// The cards a "send for review" actually carries: the above, minus the ones
+    /// already sent and still waiting for a verdict. Sending a word twice asks
+    /// the backend nothing new, so a word only becomes sendable again once it is
+    /// edited here or the review lands.
+    static func cardsToSubmit(in deck: Deck) -> [Card] {
+        cardsNeedingSubmission(in: deck).filter { !$0.pendingReview }
     }
 
     static func cardsAwaitingReview(in deck: Deck) -> [Card] {

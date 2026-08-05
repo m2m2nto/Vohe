@@ -194,7 +194,48 @@ final class DictionarySyncTests: XCTestCase {
         XCTAssertTrue(mine.isLocalOnly)
         XCTAssertTrue(mine.needsSubmission)
         XCTAssertEqual(DictionarySync.cardsNeedingSubmission(in: deck).map(\.front), ["kuća"])
+        XCTAssertEqual(DictionarySync.cardsToSubmit(in: deck).map(\.front), ["kuća"])
         XCTAssertEqual(DictionarySync.cardsAwaitingReview(in: deck).count, 0)
+    }
+
+    func testAWordAlreadySentIsNotOfferedForSendingAgain() {
+        let deck = makeDeck()
+        apply(remote([("pas", "cane")]), to: deck)
+        let mine = insertCard(deck, "kuća", "casa")
+        DictionarySync.markSubmitted([mine])
+
+        // It is still absent from the dictionary, but there is nothing left to
+        // ask: the button this feeds has no words to carry.
+        XCTAssertTrue(mine.needsSubmission)
+        XCTAssertEqual(DictionarySync.cardsAwaitingReview(in: deck).map(\.front), ["kuća"])
+        XCTAssertTrue(DictionarySync.cardsToSubmit(in: deck).isEmpty)
+    }
+
+    func testANewWordAfterASendIsTheOnlyOneSentNext() {
+        let deck = makeDeck()
+        apply(remote([("pas", "cane")]), to: deck)
+        let sent = insertCard(deck, "kuća", "casa")
+        DictionarySync.markSubmitted([sent])
+        insertCard(deck, "mačka", "gatto")
+
+        XCTAssertEqual(DictionarySync.cardsNeedingSubmission(in: deck).map(\.front), ["kuća", "mačka"])
+        XCTAssertEqual(DictionarySync.cardsToSubmit(in: deck).map(\.front), ["mačka"])
+    }
+
+    func testAWordEditedAfterASendCanBeSentAgain() {
+        let deck = makeDeck()
+        apply(remote([("pas", "cane")]), to: deck)
+        let pas = card(deck, "pas")!
+        pas.back = "il cane"
+        DictionarySync.markSubmitted([pas])
+        XCTAssertTrue(DictionarySync.cardsToSubmit(in: deck).isEmpty)
+
+        // The card editor clears the mark, because the text on this device is no
+        // longer the text that was sent.
+        pas.back = "cane, il cane"
+        pas.pendingReview = false
+
+        XCTAssertEqual(DictionarySync.cardsToSubmit(in: deck).map(\.front), ["pas"])
     }
 
     // MARK: - Acceptance 2: review before it becomes shared

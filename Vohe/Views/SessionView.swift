@@ -377,6 +377,8 @@ struct SessionView: View {
         }
         card.front = front
         card.back = back
+        // Editing supersedes any proposal still waiting on the backend.
+        card.pendingReview = false
         try? context.save()
         guard let cardDeck = card.deck else { return }
         DifficultyStore.shared.rename(

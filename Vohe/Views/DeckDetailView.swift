@@ -42,6 +42,12 @@ struct DeckDetailView: View {
         DictionarySync.cardsNeedingSubmission(in: deck)
     }
 
+    /// What a tap on "Send for review" would carry — nothing, once every word
+    /// has been sent and is waiting.
+    private var sendableCards: [Card] {
+        DictionarySync.cardsToSubmit(in: deck)
+    }
+
     private var awaitingReviewCount: Int {
         DictionarySync.cardsAwaitingReview(in: deck).count
     }
@@ -268,12 +274,12 @@ struct DeckDetailView: View {
                 Button {
                     Task { await sendForReview() }
                 } label: {
-                    Label(
-                        "Send \(unsubmittedCards.count) word\(unsubmittedCards.count == 1 ? "" : "s") for review",
-                        systemImage: "paperplane"
-                    )
+                    Label(sendButtonTitle, systemImage: "paperplane")
+                        // Without this the symbol keeps its tint while the title
+                        // greys out, and a dead button still reads as live.
+                        .foregroundStyle(sendDisabled ? Color.secondary : Color.accentColor)
                 }
-                .disabled(syncing || !backendSettings.isConfigured)
+                .disabled(sendDisabled)
             }
         } header: {
             Text("Shared dictionary")
@@ -282,10 +288,23 @@ struct DeckDetailView: View {
         }
     }
 
+    /// Nothing new to send, or nothing that could be sent right now.
+    private var sendDisabled: Bool {
+        syncing || sendableCards.isEmpty || !backendSettings.isConfigured
+    }
+
+    /// Reads "Send N words for review" while there is something new to send, and
+    /// states the waiting instead once the button has nothing left to carry.
+    private var sendButtonTitle: String {
+        let count = sendableCards.count
+        guard count > 0 else { return "All words sent for review" }
+        return "Send \(count) word\(count == 1 ? "" : "s") for review"
+    }
+
     private var dictionaryFooter: String {
         var lines: [String] = []
-        if !unsubmittedCards.isEmpty {
-            lines.append("\(unsubmittedCards.count) word\(unsubmittedCards.count == 1 ? " is" : "s are") only on this iPhone, or changed here. Sending them asks for them to be reviewed before they join the dictionary.")
+        if !sendableCards.isEmpty {
+            lines.append("\(sendableCards.count) word\(sendableCards.count == 1 ? " is" : "s are") only on this iPhone, or changed here. Sending them asks for them to be reviewed before they join the dictionary.")
         }
         if awaitingReviewCount > 0 {
             lines.append("\(awaitingReviewCount) waiting for review — an update leaves those untouched.")
@@ -315,7 +334,8 @@ struct DeckDetailView: View {
 
     private func sendForReview() async {
         guard let id = deck.remoteID else { return }
-        let cards = unsubmittedCards
+        let cards = sendableCards
+        guard !cards.isEmpty else { return }
         syncing = true
         defer { syncing = false }
         do {

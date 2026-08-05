@@ -98,6 +98,9 @@ struct CardsListView: View {
         }
         card.front = front
         card.back = back
+        // The text under review is no longer the text on this device, so this is
+        // a new proposal: it has to be sent again before it can be waiting.
+        card.pendingReview = false
         try? context.save()
         DifficultyStore.shared.rename(
             deckName: deck.name,
