@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listDecks } from "@/lib/db";
+import { listDecks, listLanguages } from "@/lib/db";
 import { SubmitButton } from "./SubmitButton";
 import { createDeck, logout } from "./actions";
 
@@ -12,14 +12,18 @@ export default async function LibraryPage({
 }) {
   const { error } = await searchParams;
   const decks = await listDecks();
+  const languages = await listLanguages();
 
   return (
     <>
       <header className="bar">
         <h1>Vohe Dictionaries</h1>
-        <form action={logout}>
-          <SubmitButton>Sign out</SubmitButton>
-        </form>
+        <span className="inline">
+          <Link href="/languages">Languages</Link>
+          <form action={logout}>
+            <SubmitButton>Sign out</SubmitButton>
+          </form>
+        </span>
       </header>
 
       {error && <p className="error">{error}</p>}
@@ -62,27 +66,49 @@ export default async function LibraryPage({
       )}
 
       <h2>New dictionary</h2>
-      <form action={createDeck} className="stack card">
-        <label htmlFor="name">Name (becomes the deck and file name)</label>
-        <input id="name" name="name" type="text" placeholder="Italian-Croatian" />
-        <div className="row" style={{ gridTemplateColumns: "1fr 1fr" }}>
-          <span>
-            <label htmlFor="language1">Front language</label>
-            <input id="language1" name="language1" type="text" placeholder="Italian" />
-          </span>
-          <span>
-            <label htmlFor="language2">Back language</label>
-            <input id="language2" name="language2" type="text" placeholder="Croatian" />
-          </span>
-        </div>
+      {languages.length === 0 ? (
         <p className="hint">
-          These two become the first line of the exported file
-          (<code>Italian-Croatian</code>), so neither may contain a hyphen.
+          A dictionary needs a front and a back language, and there are none to
+          pick yet. Add them in <Link href="/languages">Languages</Link> first.
         </p>
-        <div>
-          <SubmitButton className="primary">Create</SubmitButton>
-        </div>
-      </form>
+      ) : (
+        <form action={createDeck} className="stack card">
+          <label htmlFor="name">Name (becomes the deck and file name)</label>
+          <input id="name" name="name" type="text" placeholder="Italian-Croatian" />
+          <div className="row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+            <span>
+              <label htmlFor="language1">Front language</label>
+              <select id="language1" name="language1" defaultValue="">
+                <option value="">Choose…</option>
+                {languages.map((language) => (
+                  <option key={language.id} value={language.name}>
+                    {language.name}
+                  </option>
+                ))}
+              </select>
+            </span>
+            <span>
+              <label htmlFor="language2">Back language</label>
+              <select id="language2" name="language2" defaultValue="">
+                <option value="">Choose…</option>
+                {languages.map((language) => (
+                  <option key={language.id} value={language.name}>
+                    {language.name}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </div>
+          <p className="hint">
+            These two become the first line of the exported file
+            (<code>Italian-Croatian</code>) and come from{" "}
+            <Link href="/languages">Languages</Link>.
+          </p>
+          <div>
+            <SubmitButton className="primary">Create</SubmitButton>
+          </div>
+        </form>
+      )}
     </>
   );
 }

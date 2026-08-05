@@ -39,6 +39,14 @@ for (const file of files) {
     continue;
   }
 
+  // The sample's own labels have to be on the admin's list, or the deck would
+  // arrive with a pair its own settings menu cannot offer back.
+  await sql`
+    insert into languages (name)
+    values (${deck.language1}), (${deck.language2})
+    on conflict (name) do nothing
+  `;
+
   const [row] = await sql`
     insert into decks (name, language1, language2)
     values (${name}, ${deck.language1}, ${deck.language2})

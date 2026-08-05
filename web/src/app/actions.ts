@@ -13,6 +13,7 @@ import {
   approveSubmission,
   bumpDeckVersion,
   listEntries,
+  listLanguages,
   rejectSubmission,
   sql,
 } from "@/lib/db";
@@ -21,6 +22,7 @@ import {
   parseDeckText,
   validateEntry,
   validateLanguage,
+  validateLanguageChoice,
 } from "@/lib/deckFormat";
 import { findDuplicates, redundantEntryIds } from "@/lib/duplicates";
 
@@ -33,6 +35,18 @@ function deckPath(deckId: number, error?: string): string {
   return error
     ? `/decks/${deckId}?error=${encodeURIComponent(error)}`
     : `/decks/${deckId}`;
+}
+
+function languagesPath(error?: string): string {
+  return error ? `/languages?error=${encodeURIComponent(error)}` : "/languages";
+}
+
+/**
+ * Re-read on every save rather than trusted from the posted form: the menu the
+ * admin saw may name a language that has since been deleted.
+ */
+async function languageNames(): Promise<string[]> {
+  return (await listLanguages()).map((language) => language.name);
 }
 
 export async function login(formData: FormData) {
@@ -56,15 +70,76 @@ export async function logout() {
   redirect("/login");
 }
 
+/**
+ * Adds a label the dictionary menus will offer. The export rules are checked
+ * here, once, so no deck can later be given a pair the .txt header cannot hold.
+ */
+export async function addLanguage(formData: FormData) {
+  const name = field(formData, "name");
+
+  const error = validateLanguage("Language", name);
+  if (error) redirect(languagesPath(error));
+
+  try {
+    await sql()`insert into languages (name) values (${name})`;
+  } catch (e) {
+    const message =
+      e instanceof Error && e.message.includes("languages_name_key")
+        ? `"${name}" is already in the list.`
+        : "Could not add the language.";
+    redirect(languagesPath(message));
+  }
+
+  revalidatePath("/languages");
+  revalidatePath("/");
+  redirect(languagesPath());
+}
+
+/**
+ * Removes a label from the menus. Refused while a dictionary is set to it, so
+ * no deck can end up naming a language the admin can no longer pick.
+ */
+export async function deleteLanguage(formData: FormData) {
+  const languageId = Number(field(formData, "languageId"));
+
+  const rows = (await sql()`
+    select name from languages where id = ${languageId}
+  `) as { name: string }[];
+  const language = rows[0];
+  if (!language) redirect(languagesPath("That language is no longer in the list."));
+
+  // Recounted here rather than trusted from the form: the page may be stale.
+  const [{ used }] = (await sql()`
+    select count(*)::int as used from decks
+    where language1 = ${language.name} or language2 = ${language.name}
+  `) as { used: number }[];
+
+  if (used > 0) {
+    redirect(
+      languagesPath(
+        `"${language.name}" is used by ${used} ${
+          used === 1 ? "dictionary" : "dictionaries"
+        }. Change ${used === 1 ? "it" : "them"} first.`,
+      ),
+    );
+  }
+
+  await sql()`delete from languages where id = ${languageId}`;
+  revalidatePath("/languages");
+  revalidatePath("/");
+  redirect(languagesPath());
+}
+
 export async function createDeck(formData: FormData) {
   const name = normalizeName(field(formData, "name"));
   const language1 = field(formData, "language1");
   const language2 = field(formData, "language2");
 
+  const allowed = await languageNames();
   const error =
     (!name ? "Deck name is required." : null) ??
-    validateLanguage("Language 1", language1) ??
-    validateLanguage("Language 2", language2);
+    validateLanguageChoice("Front language", language1, allowed) ??
+    validateLanguageChoice("Back language", language2, allowed);
   if (error) redirect(`/?error=${encodeURIComponent(error)}`);
 
   let created: { id: number }[];
@@ -92,10 +167,11 @@ export async function updateDeck(formData: FormData) {
   const language1 = field(formData, "language1");
   const language2 = field(formData, "language2");
 
+  const allowed = await languageNames();
   const error =
     (!name ? "Deck name is required." : null) ??
-    validateLanguage("Language 1", language1) ??
-    validateLanguage("Language 2", language2);
+    validateLanguageChoice("Front language", language1, allowed) ??
+    validateLanguageChoice("Back language", language2, allowed);
   if (error) redirect(deckPath(deckId, error));
 
   await sql()`

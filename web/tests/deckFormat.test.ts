@@ -10,6 +10,7 @@ import {
   serializeDeck,
   validateEntry,
   validateLanguage,
+  validateLanguageChoice,
 } from "../src/lib/deckFormat.ts";
 
 const samplesDir = join(
@@ -70,6 +71,19 @@ test("validation guards what the app's parser cannot represent", () => {
   assert.match(validateEntry("#cane", "pas") ?? "", /#/);
   assert.equal(validateLanguage("Language 1", "Italian"), null);
   assert.match(validateLanguage("Language 1", "Serbo-Croatian") ?? "", /hyphen/);
+});
+
+test("a deck's sides must come from the admin's language list", () => {
+  const list = ["Croatian", "Italian"];
+  assert.equal(validateLanguageChoice("Front language", "Italian", list), null);
+  // A forged form, or a menu built before the language was deleted.
+  assert.match(
+    validateLanguageChoice("Back language", "Klingon", list) ?? "",
+    /not in the languages list/,
+  );
+  // Nothing chosen, and nothing to choose from.
+  assert.match(validateLanguageChoice("Front language", "", list) ?? "", /required/);
+  assert.match(validateLanguageChoice("Front language", "Italian", []) ?? "", /not in the languages list/);
 });
 
 test("serialize produces text the parser reads back identically", () => {

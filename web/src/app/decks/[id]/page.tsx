@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getDeck, listEntries, listPendingSubmissions } from "@/lib/db";
+import {
+  getDeck,
+  listEntries,
+  listLanguages,
+  listPendingSubmissions,
+} from "@/lib/db";
 import { findDuplicates, redundantEntryIds } from "@/lib/duplicates";
 import { SubmitButton } from "../../SubmitButton";
 import {
@@ -37,6 +42,7 @@ export default async function DeckPage({
 
   const entries = await listEntries(deckId);
   const pending = await listPendingSubmissions(deckId);
+  const languages = await listLanguages();
 
   const duplicates = findDuplicates(entries);
   const conflicting = duplicates.filter((group) => group.conflicting);
@@ -253,23 +259,30 @@ export default async function DeckPage({
           </span>
           <span>
             <label htmlFor="language1">Front language</label>
-            <input
-              id="language1"
-              name="language1"
-              type="text"
-              defaultValue={deck.language1}
-            />
+            <select id="language1" name="language1" defaultValue={deck.language1}>
+              {languages.map((language) => (
+                <option key={language.id} value={language.name}>
+                  {language.name}
+                </option>
+              ))}
+            </select>
           </span>
           <span>
             <label htmlFor="language2">Back language</label>
-            <input
-              id="language2"
-              name="language2"
-              type="text"
-              defaultValue={deck.language2}
-            />
+            <select id="language2" name="language2" defaultValue={deck.language2}>
+              {languages.map((language) => (
+                <option key={language.id} value={language.name}>
+                  {language.name}
+                </option>
+              ))}
+            </select>
           </span>
         </div>
+        <p className="hint">
+          Both menus come from <Link href="/languages">Languages</Link>. Changing
+          either one rewrites the exported file&rsquo;s first line and offers the
+          phone an update.
+        </p>
         <div>
           <SubmitButton>Save settings</SubmitButton>
         </div>

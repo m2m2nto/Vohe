@@ -31,6 +31,13 @@ export type DeckRow = {
   pending_count: number;
 };
 
+export type LanguageRow = {
+  id: number;
+  name: string;
+  /** Dictionaries using this label on either side. Above zero blocks deletion. */
+  deck_count: number;
+};
+
 export type EntryRow = {
   id: number;
   word: string;
@@ -72,6 +79,17 @@ export async function getDeck(id: number): Promise<DeckRow | null> {
     where d.id = ${id}
   `) as DeckRow[];
   return rows[0] ?? null;
+}
+
+/** The two language menus and the languages section read the same list. */
+export async function listLanguages(): Promise<LanguageRow[]> {
+  return (await sql()`
+    select l.id, l.name,
+           (select count(*)::int from decks d
+             where d.language1 = l.name or d.language2 = l.name) as deck_count
+    from languages l
+    order by l.name
+  `) as LanguageRow[];
 }
 
 export async function listEntries(deckId: number): Promise<EntryRow[]> {

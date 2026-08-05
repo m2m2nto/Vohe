@@ -40,3 +40,23 @@ create unique index if not exists submissions_pending_unique
 
 create index if not exists submissions_deck_status_idx
   on submissions (deck_id, status, submitted_at);
+
+-- The labels a dictionary's front and back may be set to, managed at
+-- /languages. Decks keep storing their pair as text, so exports and the API
+-- are unaffected. This table only decides what the two menus offer.
+-- (No semicolons in these comments: migrate.mjs splits the file on them.)
+create table if not exists languages (
+  id serial primary key,
+  name text not null unique,
+  created_at timestamptz not null default now()
+);
+
+-- Dictionaries created before the list existed had their labels typed by hand.
+-- Adopting them keeps every deck's own pair on the menu.
+insert into languages (name)
+  select language from (
+    select language1 as language from decks
+    union
+    select language2 from decks
+  ) as used
+  on conflict (name) do nothing;

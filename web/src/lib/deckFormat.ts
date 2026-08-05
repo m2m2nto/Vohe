@@ -85,6 +85,22 @@ export function validateLanguage(label: string, value: string): string | null {
 }
 
 /**
+ * A dictionary's two sides are picked from the admin's list, so a value that is
+ * not on it means an empty menu, a deleted language, or a hand-made request.
+ */
+export function validateLanguageChoice(
+  label: string,
+  value: string,
+  allowed: string[],
+): string | null {
+  if (!value) return `${label} is required.`;
+  if (!allowed.includes(value)) {
+    return `${label} "${value}" is not in the languages list. Add it there first.`;
+  }
+  return null;
+}
+
+/**
  * The word is everything before the first " - ", so hyphens inside it are fine
  * ("tako-tako"); a spaced hyphen is not, as it would move the split and
  * truncate the word on re-import. The translation is the rest of the line and

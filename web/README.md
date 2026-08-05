@@ -19,10 +19,11 @@ src/lib/db.ts           Neon Postgres queries
 src/proxy.ts            locks every route except /login and /api
 src/app/SubmitButton.tsx submit button that locks and spins while its action runs
 src/app/page.tsx        dictionary list + create
+src/app/languages/      the language labels the two menus offer
 src/app/decks/[id]/     word editor, review queue, paste-import, settings, delete
 src/app/decks/[id]/export/route.ts   the .txt download
 src/app/api/decks/                   catalog, one dictionary, submissions
-db/schema.sql           decks + entries + submissions
+db/schema.sql           decks + entries + submissions + languages
 scripts/migrate.mjs     applies schema.sql
 scripts/seed.mjs        imports ../samples/*.txt
 tests/deckFormat.test.ts   format round-trip against the real sample files
@@ -65,7 +66,7 @@ separate Neon branch):
 
 ```sh
 npm install
-npm run db:migrate   # creates decks + entries + submissions, adds decks.version
+npm run db:migrate   # creates the tables, adds decks.version and the language list
 npm run db:seed      # imports every ../samples/*.txt, skipping decks that exist
 ```
 
@@ -81,12 +82,29 @@ npm run build        # what Vercel runs
 ```
 
 1. Sign in with `ADMIN_PASSWORD`.
-2. Pick a dictionary, or create one (name + the two language labels).
+2. Pick a dictionary, or create one (name + the two languages, chosen from the
+   menus **Languages** fills — see below).
 3. Add words one at a time, or paste a whole list into **Paste a list**.
 4. Approve or reject anything sitting in **From the app — waiting for review**.
 5. Settle anything in **Repeated words** (see below).
 6. **download .txt** → open it in Vohe via **+**, or just let the phone pull the
    new version.
+
+## Languages
+
+A dictionary's front and back are picked from a list the admin keeps in
+**Languages** (linked from the header), not typed per dictionary, so the same
+language is spelled the same way everywhere and the exported header line stays
+valid. The rules are checked once, when a language is added: no hyphen, no
+leading `#`, no line break.
+
+Adding is free-form; deleting is refused while any dictionary is set to that
+language, and the list says how many use it. There is no rename — renaming would
+silently rewrite the header of every dictionary using it. To retire a label,
+point the dictionaries at another one first, then delete it.
+
+`db:migrate` seeds the list from the languages already in use, so existing
+dictionaries keep their pair, and `db:seed` adds whatever its sample files name.
 
 ## Repeated words
 
