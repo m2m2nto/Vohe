@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDeck, listEntries, listPendingSubmissions } from "@/lib/db";
+import { findDuplicates, redundantEntryIds } from "@/lib/duplicates";
 import {
   addEntry,
   approveWord,
@@ -9,6 +10,8 @@ import {
   importEntries,
   logout,
   rejectWord,
+  removeExactDuplicates,
+  resolveDuplicate,
   updateDeck,
   updateEntry,
 } from "../../actions";
@@ -34,6 +37,11 @@ export default async function DeckPage({
   const entries = await listEntries(deckId);
   const pending = await listPendingSubmissions(deckId);
 
+  const duplicates = findDuplicates(entries);
+  const conflicting = duplicates.filter((group) => group.conflicting);
+  const exactCopies = duplicates.length - conflicting.length;
+  const removableRows = redundantEntryIds(duplicates).length;
+
   return (
     <>
       <header className="bar">
@@ -46,8 +54,12 @@ export default async function DeckPage({
         </span>
       </header>
       <p className="hint">
-        {deck.language1}–{deck.language2} · {deck.entry_count} words · version{" "}
-        {deck.version} · <a href={`/decks/${deckId}/export`}>download .txt</a>
+        {deck.language1}–{deck.language2} · {deck.entry_count} words
+        {deck.distinct_count < deck.entry_count && (
+          <> · {deck.distinct_count} cards on the phone</>
+        )}{" "}
+        · version {deck.version} ·{" "}
+        <a href={`/decks/${deckId}/export`}>download .txt</a>
       </p>
 
       {error && <p className="error">{error}</p>}
@@ -87,6 +99,66 @@ export default async function DeckPage({
                   Reject
                 </button>
               </form>
+            </div>
+          ))}
+        </>
+      )}
+
+      {duplicates.length > 0 && (
+        <>
+          <h2>Repeated words ({duplicates.length})</h2>
+          <p className="hint">
+            Vohe keys a card on the word, so only the last row for a repeated
+            word reaches the phone — which is why {deck.entry_count} words here
+            become {deck.distinct_count} cards. Clear the identical copies in
+            one go, then pick the translation to keep for the ones that
+            disagree.
+          </p>
+
+          {exactCopies > 0 && (
+            <form action={removeExactDuplicates} className="card">
+              <input type="hidden" name="deckId" value={deckId} />
+              <div className="inline">
+                <button className="primary" type="submit">
+                  Remove {removableRows} identical{" "}
+                  {removableRows === 1 ? "copy" : "copies"}
+                </button>
+                <span className="meta">
+                  {exactCopies} {exactCopies === 1 ? "word" : "words"} repeated
+                  with the same translation — the first row stays, nothing is
+                  lost.
+                </span>
+              </div>
+            </form>
+          )}
+
+          {conflicting.map((group) => (
+            <div className="card" key={group.word}>
+              <p className="inline" style={{ marginTop: 0 }}>
+                <strong>{group.word}</strong>
+                <span className="meta">
+                  {group.entries.length} rows disagree — keep one, edit it first
+                  if the right answer is a mix
+                </span>
+              </p>
+              {group.entries.map((entry) => (
+                <form
+                  action={resolveDuplicate}
+                  className="row"
+                  style={{ gridTemplateColumns: "1fr auto" }}
+                  key={entry.id}
+                >
+                  <input type="hidden" name="deckId" value={deckId} />
+                  <input type="hidden" name="entryId" value={entry.id} />
+                  <input
+                    name="translation"
+                    type="text"
+                    defaultValue={entry.translation}
+                    aria-label={`${deck.language2} translation of ${group.word}`}
+                  />
+                  <button type="submit">Keep this one</button>
+                </form>
+              ))}
             </div>
           ))}
         </>

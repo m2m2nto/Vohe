@@ -12,6 +12,7 @@ only once you approve them.
 
 ```
 src/lib/deckFormat.ts   mirror of DeckParser.swift (parse, serialize, validate)
+src/lib/duplicates.ts   groups repeated words into "identical" and "needs review"
 src/lib/auth.ts         password session cookie (HMAC-signed) + API bearer token
 src/lib/api.ts          JSON API shapes and submission validation
 src/lib/db.ts           Neon Postgres queries
@@ -24,6 +25,7 @@ db/schema.sql           decks + entries + submissions
 scripts/migrate.mjs     applies schema.sql
 scripts/seed.mjs        imports ../samples/*.txt
 tests/deckFormat.test.ts   format round-trip against the real sample files
+tests/duplicates.test.ts   repeated-word grouping, incl. the real sample's counts
 tests/api.test.ts          token check + submission validation
 ```
 
@@ -81,8 +83,33 @@ npm run build        # what Vercel runs
 2. Pick a dictionary, or create one (name + the two language labels).
 3. Add words one at a time, or paste a whole list into **Paste a list**.
 4. Approve or reject anything sitting in **From the app — waiting for review**.
-5. **download .txt** → open it in Vohe via **+**, or just let the phone pull the
+5. Settle anything in **Repeated words** (see below).
+6. **download .txt** → open it in Vohe via **+**, or just let the phone pull the
    new version.
+
+## Repeated words
+
+The app keys a card on the word, so a dictionary carrying the same word twice
+becomes one card, not two — a 757-word dictionary imports as 637 cards. Nothing
+here rejects a repeat, because the second row often holds the better
+translation; instead the deck page lists them under **Repeated words**, and the
+header and dictionary list show both numbers (`757 words · 637 cards on the
+phone`).
+
+Two kinds, handled differently:
+
+- **identical copies** — same word, same translation. One button clears the
+  extras and keeps the earliest. Nothing is lost and the phone sees no change,
+  since it was already ignoring those rows.
+- **rows that disagree** — same word, different translations. These are listed
+  one word at a time with every competing translation in an editable field.
+  **Keep this one** makes that row the survivor and deletes the other copies of
+  that word, so you can also merge by hand first (`mese` + `mese/luna` →
+  `mese/luna`). Only the last row of a disagreeing word currently reaches the
+  phone, so leaving these unresolved means the phone keeps whichever the export
+  happens to end on.
+
+Both bump the dictionary version, so the phone offers the update.
 
 Signing in on the iPhone works the same way: open the site in Safari, sign in,
 tap **download .txt**, then import from Files.

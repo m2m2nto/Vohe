@@ -12,6 +12,7 @@ import {
 import {
   approveSubmission,
   bumpDeckVersion,
+  listEntries,
   rejectSubmission,
   sql,
 } from "@/lib/db";
@@ -21,6 +22,7 @@ import {
   validateEntry,
   validateLanguage,
 } from "@/lib/deckFormat";
+import { findDuplicates, redundantEntryIds } from "@/lib/duplicates";
 
 function field(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -161,6 +163,68 @@ export async function deleteEntry(formData: FormData) {
   const entryId = Number(field(formData, "entryId"));
   await sql()`delete from entries where id = ${entryId} and deck_id = ${deckId}`;
   await bumpDeckVersion(deckId);
+  revalidatePath(`/decks/${deckId}`);
+  redirect(deckPath(deckId));
+}
+
+/**
+ * Drops the extra rows of every word whose copies all say the same thing,
+ * keeping the earliest. The phone was already showing one card per word, so
+ * this changes nothing there — it just makes the two counts agree. Words whose
+ * copies disagree are untouched; only the admin can settle those.
+ */
+export async function removeExactDuplicates(formData: FormData) {
+  const deckId = Number(field(formData, "deckId"));
+
+  // Recomputed here rather than trusted from the form: the page may be stale.
+  const ids = redundantEntryIds(findDuplicates(await listEntries(deckId)));
+  if (ids.length === 0) {
+    redirect(deckPath(deckId, "No exact copies left to remove."));
+  }
+
+  await sql().query(
+    `delete from entries where deck_id = $1 and id = any($2::int[])`,
+    [deckId, ids],
+  );
+  await bumpDeckVersion(deckId);
+
+  revalidatePath("/");
+  revalidatePath(`/decks/${deckId}`);
+  redirect(deckPath(deckId));
+}
+
+/**
+ * Settles one disagreeing word: the chosen row keeps the translation as the
+ * admin left it in the field, and every other row for that same word goes.
+ * The word itself is read from the database, so the deletion can only ever
+ * touch the chosen row's own word inside its own deck.
+ */
+export async function resolveDuplicate(formData: FormData) {
+  const deckId = Number(field(formData, "deckId"));
+  const entryId = Number(field(formData, "entryId"));
+  const translation = field(formData, "translation");
+
+  const rows = (await sql()`
+    select word from entries where id = ${entryId} and deck_id = ${deckId}
+  `) as { word: string }[];
+  const kept = rows[0];
+  if (!kept) {
+    redirect(deckPath(deckId, "That row is no longer in the dictionary."));
+  }
+
+  const error = validateEntry(kept.word, translation);
+  if (error) redirect(deckPath(deckId, error));
+
+  await sql()`
+    update entries set translation = ${translation} where id = ${entryId}
+  `;
+  await sql()`
+    delete from entries
+    where deck_id = ${deckId} and word = ${kept.word} and id <> ${entryId}
+  `;
+  await bumpDeckVersion(deckId);
+
+  revalidatePath("/");
   revalidatePath(`/decks/${deckId}`);
   redirect(deckPath(deckId));
 }

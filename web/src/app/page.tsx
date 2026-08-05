@@ -45,6 +45,14 @@ export default async function LibraryPage({
                     </Link>
                   </>
                 )}
+                {deck.distinct_count < deck.entry_count && (
+                  <>
+                    {" "}
+                    <Link className="badge" href={`/decks/${deck.id}`}>
+                      {deck.entry_count - deck.distinct_count} repeated
+                    </Link>
+                  </>
+                )}
               </span>
               <a href={`/decks/${deck.id}/export`}>.txt</a>
             </li>

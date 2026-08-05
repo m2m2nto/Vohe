@@ -22,6 +22,12 @@ export type DeckRow = {
   language2: string;
   version: number;
   entry_count: number;
+  /**
+   * Distinct words, which is how many cards the app ends up with — it keys a
+   * card on the word. Lower than `entry_count` means the dictionary repeats
+   * words.
+   */
+  distinct_count: number;
   pending_count: number;
 };
 
@@ -45,6 +51,8 @@ export async function listDecks(): Promise<DeckRow[]> {
   return (await sql()`
     select d.id, d.name, d.language1, d.language2, d.version,
            (select count(*)::int from entries e where e.deck_id = d.id) as entry_count,
+           (select count(distinct e.word)::int from entries e
+             where e.deck_id = d.id) as distinct_count,
            (select count(*)::int from submissions s
              where s.deck_id = d.id and s.status = 'pending') as pending_count
     from decks d
@@ -56,6 +64,8 @@ export async function getDeck(id: number): Promise<DeckRow | null> {
   const rows = (await sql()`
     select d.id, d.name, d.language1, d.language2, d.version,
            (select count(*)::int from entries e where e.deck_id = d.id) as entry_count,
+           (select count(distinct e.word)::int from entries e
+             where e.deck_id = d.id) as distinct_count,
            (select count(*)::int from submissions s
              where s.deck_id = d.id and s.status = 'pending') as pending_count
     from decks d
