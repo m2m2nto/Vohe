@@ -1,9 +1,9 @@
 # Vohe Dictionaries — web editor and backend
 
-A small password-protected Next.js app that stores Vohe dictionaries in Postgres,
-exports each one as a `.txt` file in exactly the format
+A small Next.js app behind named accounts that stores Vohe dictionaries in
+Postgres, exports each one as a `.txt` file in exactly the format
 [`DeckParser.swift`](../Vohe/Services/DeckParser.swift) imports, and serves them
-to the iOS app over a token-authenticated JSON API.
+to the iOS app over a JSON API the app signs in to.
 
 Two ways to get words onto the phone: download the `.txt` and import it with the
 **+** button, or point the app at this server and pull dictionaries directly.
@@ -13,7 +13,8 @@ only once you approve them.
 ```
 src/lib/deckFormat.ts   mirror of DeckParser.swift (parse, serialize, validate)
 src/lib/duplicates.ts   groups repeated words into "identical" and "needs review"
-src/lib/auth.ts         password session cookie (HMAC-signed) + API bearer token
+src/lib/auth.ts         password hashing + HMAC-signed session tokens (no database)
+src/lib/session.ts      turns a token into the account that sent it
 src/lib/api.ts          JSON API shapes and submission validation
 src/lib/db.ts           Neon Postgres queries
 src/proxy.ts            locks every route except /login and /api
@@ -23,12 +24,14 @@ src/app/languages/      the language labels the two menus offer
 src/app/decks/[id]/     word editor, review queue, paste-import, settings, delete
 src/app/decks/[id]/export/route.ts   the .txt download
 src/app/api/decks/                   catalog, one dictionary, submissions
-db/schema.sql           decks + entries + submissions + languages
+db/schema.sql           decks + entries + submissions + languages + users
 scripts/migrate.mjs     applies schema.sql
 scripts/seed.mjs        imports ../samples/*.txt
+scripts/create-user.mjs creates an account or changes its password
 tests/deckFormat.test.ts   format round-trip against the real sample files
 tests/duplicates.test.ts   repeated-word grouping, incl. the real sample's counts
-tests/api.test.ts          token check + submission validation
+tests/auth.test.ts         password hashing + session tokens
+tests/api.test.ts          submission validation
 ```
 
 ## One-time setup
@@ -43,16 +46,17 @@ attach it to this project. Vercel injects `DATABASE_URL` into the deployment.
 Set these in Vercel → **Settings** → **Environment Variables** (all
 environments), and copy `.env.example` to `.env.local` for local work:
 
-| Variable         | What it is                                        |
-| ---------------- | ------------------------------------------------- |
-| `DATABASE_URL`   | Neon connection string (auto-set by Vercel)       |
-| `ADMIN_PASSWORD` | the password that unlocks the editor              |
-| `AUTH_SECRET`    | random 32-byte hex, signs the session cookie      |
-| `API_TOKEN`      | random 32-byte hex, what the iOS app sends to `/api/*` |
+| Variable       | What it is                                                     |
+| -------------- | -------------------------------------------------------------- |
+| `DATABASE_URL` | Neon connection string (auto-set by Vercel)                     |
+| `AUTH_SECRET`  | random 32-byte hex, signs every session token — browser and app |
 
 ```sh
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+
+Changing `AUTH_SECRET` signs everyone out: existing tokens stop verifying, so
+the editor asks for a password again and each phone has to sign in again.
 
 ### 3. Vercel project root
 
@@ -73,6 +77,22 @@ npm run db:seed      # imports every ../samples/*.txt, skipping decks that exist
 `db:migrate` is idempotent and additive — re-run it after pulling changes that
 touch `db/schema.sql`.
 
+### 5. Create your account
+
+There is no signup page: accounts are made from the command line, against
+whatever `DATABASE_URL` points at. An admin opens the editor; anyone else can
+only sign in from the app.
+
+```sh
+npm run user:create -- <username> '<password>' --admin   # the editor
+npm run user:create -- <username> '<password>'           # app-only
+```
+
+Re-running it for a username that already exists changes that account's password
+and role — which is also how a forgotten password is reset. The script needs
+`DATABASE_URL` and nothing else, so it works even when the editor has locked you
+out.
+
 ## Daily use
 
 ```sh
@@ -81,7 +101,7 @@ npm test             # format round-trip tests, no database needed
 npm run build        # what Vercel runs
 ```
 
-1. Sign in with `ADMIN_PASSWORD`.
+1. Sign in with your username and password.
 2. Pick a dictionary, or create one (name + the two languages, chosen from the
    menus **Languages** fills — see below).
 3. Add words one at a time, or paste a whole list into **Paste a list**.
@@ -135,14 +155,17 @@ tap **download .txt**, then import from Files.
 
 ## The app's API
 
-Every route needs `Authorization: Bearer $API_TOKEN`; without a valid token they
-answer `401`. They are the only routes not behind the password cookie.
+The app signs in once and then sends the token it gets back as
+`Authorization: Bearer <token>`; without a valid one every route answers `401`.
+These are the only routes not behind the session cookie. A token minted for the
+app is not accepted as a browser session, and vice versa.
 
 | Route | What it does |
 | ----- | ------------ |
+| `POST /api/session` | `{"username","password"}` → `{"token"}`, valid for a year. The only route needing no header |
 | `GET /api/decks` | catalog: `id`, `name`, languages, `version`, `wordCount` |
 | `GET /api/decks/:id` | one dictionary with every approved word |
-| `POST /api/decks/:id/submissions` | `{"entries":[{"word","translation"}]}` → review queue |
+| `POST /api/decks/:id/submissions` | `{"entries":[{"word","translation"}]}` → review queue, credited to the account that sent it |
 
 `version` starts at 1 and increases on every approved change to a dictionary —
 adding, editing or deleting a word, approving a proposal, or renaming it. The app
@@ -154,7 +177,10 @@ no other device until approved here. Re-sending a proposal that is still waiting
 is a no-op; once rejected, the same word can be proposed again.
 
 ```sh
-curl -H "Authorization: Bearer $API_TOKEN" https://your-app.vercel.app/api/decks
+TOKEN=$(curl -s -X POST https://your-app.vercel.app/api/session \
+  -H 'content-type: application/json' \
+  -d '{"username":"you","password":"…"}' | jq -r .token)
+curl -H "Authorization: Bearer $TOKEN" https://your-app.vercel.app/api/decks
 ```
 
 ## Format rules the editor enforces
@@ -169,3 +195,30 @@ back to the first bare `-` when there is none):
 
 Pasted text is rejected as a whole if any line breaks these rules, so a bad
 paste never half-imports.
+
+## Moving a running deployment onto accounts
+
+One-time, and the order is what matters: the schema is additive and the old code
+ignores it, so the database can be prepared while production still serves the old
+build — but deploying the new build before an admin account exists locks the
+editor against its own owner.
+
+1. `npm run db:migrate` against production — adds `users` and
+   `submissions.submitted_by`, changing nothing the running build reads.
+2. `npm run user:create -- <username> '<password>' --admin` against production.
+3. Confirm the row is there (`select username, role from users`).
+   **Do not start step 4 until steps 1 and 2 are done.**
+4. Deploy the new build — web and API move to accounts together.
+5. Sign in to the editor with the username and password from step 2.
+6. Install the matching app build and sign in on the phone; pull a dictionary.
+7. Delete `API_TOKEN` and `ADMIN_PASSWORD` from the Vercel environment. Nothing
+   should break — no code path reads them any more.
+
+The app build from before this change authenticates with the old `API_TOKEN`, so
+it stops working at step 4 and starts again at step 6. Ship both together.
+
+**If you lock yourself out anyway:** `create-user.mjs` needs only
+`DATABASE_URL`, so run step 2 from your machine against the production database
+and sign in again. To roll back instead, revert the deployment and restore the
+two environment variables — the old build reads neither new column, and nothing
+was deleted from the database.

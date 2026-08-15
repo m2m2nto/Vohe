@@ -132,6 +132,24 @@ _Avoid_: "upload", "push", "sync up" — nothing the app sends becomes shared by
 **Waiting for review**:
 A Card whose current text has been sent as a Proposal (`Card.pendingReview`). An update leaves such a Card's text alone until the review lands, so pressing Update never discards the edit being reviewed. Everything else diverging from the Dictionary is replaced by it.
 
+### Accounts
+
+**Account**:
+A named user held by the backend (`users` table): a username, a hashed password, and a role. One Account serves both surfaces — the web editor and the app — and exists only on the server. Nothing about a Deck, a Card, a Box or the Stats belongs to an Account; those stay on the device.
+_Avoid_: "profile", "login" as a noun, or implying practice data follows an Account between devices.
+
+**Admin**:
+An Account with `role = 'admin'`. The only role that opens the editor, where dictionaries are written and Proposals are approved. Accounts are created from the command line (`npm run user:create`); there is no signup page and no self-service reset.
+_Avoid_: "owner", "superuser".
+
+**Member**:
+An Account with any other role. It signs in from the app, pulls Dictionaries and sends Proposals, and is refused by the editor with a plain page rather than a redirect.
+_Avoid_: "user" when the distinction from Admin matters, "guest" (a Member is not anonymous).
+
+**Sign-in**:
+Trading a username and a password for a session token — in the browser at `/login`, in the app at `POST /api/session`. The token names its Account and its surface, lasts 30 days for the browser and a year for the app, and is the only thing the app stores (in the keychain); the password is never kept. Signing out drops the token and leaves every Deck and all Stats untouched.
+_Avoid_: "access token" or "API token" (both retired), "authentication" where "signing in" reads plainly.
+
 ### Stats & ranking
 
 **Stats**:

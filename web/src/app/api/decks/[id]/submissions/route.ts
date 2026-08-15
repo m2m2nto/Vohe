@@ -1,6 +1,6 @@
 import { UNAUTHORIZED, jsonError, parseSubmissionsBody } from "@/lib/api";
-import { isValidApiToken } from "@/lib/auth";
 import { getDeck, insertSubmissions } from "@/lib/db";
+import { apiUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +13,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!isValidApiToken(request.headers.get("authorization"))) {
-    return UNAUTHORIZED();
-  }
+  const user = await apiUser(request);
+  if (!user) return UNAUTHORIZED();
 
   const { id } = await params;
   const deckId = Number(id);
@@ -34,7 +33,7 @@ export async function POST(
 
   const accepted =
     parsed.entries.length > 0
-      ? await insertSubmissions(deckId, parsed.entries)
+      ? await insertSubmissions(deckId, parsed.entries, user.id)
       : 0;
 
   return Response.json({

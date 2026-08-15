@@ -4,19 +4,22 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import {
+  DUMMY_PASSWORD_HASH,
   SESSION_COOKIE,
-  SESSION_MAX_AGE_SECONDS,
-  createSessionCookie,
-  isCorrectPassword,
+  TOKEN_MAX_AGE_SECONDS,
+  createToken,
+  verifyPassword,
 } from "@/lib/auth";
 import {
   approveSubmission,
   bumpDeckVersion,
+  findUserByUsername,
   listEntries,
   listLanguages,
   rejectSubmission,
   sql,
 } from "@/lib/db";
+import { requireAdmin } from "@/lib/session";
 import {
   normalizeName,
   parseDeckText,
@@ -49,17 +52,30 @@ async function languageNames(): Promise<string[]> {
   return (await listLanguages()).map((language) => language.name);
 }
 
+/**
+ * Any account may sign in; whether it may then do anything is the pages' and
+ * the actions' question. An unknown username costs the same derivation as a
+ * wrong password and gets the same message, so neither can be told from the
+ * other. The password is read untrimmed — it is compared to a hash, not typed
+ * into a field where a stray space would be a slip.
+ */
 export async function login(formData: FormData) {
-  if (!isCorrectPassword(field(formData, "password"))) {
-    redirect("/login?error=1");
-  }
+  const raw = formData.get("password");
+  const password = typeof raw === "string" ? raw : "";
+  const user = await findUserByUsername(field(formData, "username"));
+  const correct = await verifyPassword(
+    password,
+    user?.password_hash ?? DUMMY_PASSWORD_HASH,
+  );
+  if (!user || !correct) redirect("/login?error=1");
+
   const store = await cookies();
-  store.set(SESSION_COOKIE, await createSessionCookie(Date.now()), {
+  store.set(SESSION_COOKIE, await createToken("web", user.id, Date.now()), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
+    maxAge: TOKEN_MAX_AGE_SECONDS.web,
   });
   redirect("/");
 }
@@ -75,6 +91,7 @@ export async function logout() {
  * here, once, so no deck can later be given a pair the .txt header cannot hold.
  */
 export async function addLanguage(formData: FormData) {
+  await requireAdmin();
   const name = field(formData, "name");
 
   const error = validateLanguage("Language", name);
@@ -100,6 +117,7 @@ export async function addLanguage(formData: FormData) {
  * no deck can end up naming a language the admin can no longer pick.
  */
 export async function deleteLanguage(formData: FormData) {
+  await requireAdmin();
   const languageId = Number(field(formData, "languageId"));
 
   const rows = (await sql()`
@@ -131,6 +149,7 @@ export async function deleteLanguage(formData: FormData) {
 }
 
 export async function createDeck(formData: FormData) {
+  await requireAdmin();
   const name = normalizeName(field(formData, "name"));
   const language1 = field(formData, "language1");
   const language2 = field(formData, "language2");
@@ -162,6 +181,7 @@ export async function createDeck(formData: FormData) {
 }
 
 export async function updateDeck(formData: FormData) {
+  await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
   const name = normalizeName(field(formData, "name"));
   const language1 = field(formData, "language1");
@@ -186,6 +206,7 @@ export async function updateDeck(formData: FormData) {
 }
 
 export async function deleteDeck(formData: FormData) {
+  await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
   if (field(formData, "confirm") !== "DELETE") {
     redirect(deckPath(deckId, 'Type DELETE to confirm deck deletion.'));
@@ -196,6 +217,7 @@ export async function deleteDeck(formData: FormData) {
 }
 
 export async function addEntry(formData: FormData) {
+  await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
   const word = field(formData, "word");
   const translation = field(formData, "translation");
@@ -216,6 +238,7 @@ export async function addEntry(formData: FormData) {
 }
 
 export async function updateEntry(formData: FormData) {
+  await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
   const entryId = Number(field(formData, "entryId"));
   const word = field(formData, "word");
@@ -235,6 +258,7 @@ export async function updateEntry(formData: FormData) {
 }
 
 export async function deleteEntry(formData: FormData) {
+  await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
   const entryId = Number(field(formData, "entryId"));
   await sql()`delete from entries where id = ${entryId} and deck_id = ${deckId}`;
@@ -250,6 +274,7 @@ export async function deleteEntry(formData: FormData) {
  * copies disagree are untouched; only the admin can settle those.
  */
 export async function removeExactDuplicates(formData: FormData) {
+  await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
 
   // Recomputed here rather than trusted from the form: the page may be stale.
@@ -276,6 +301,7 @@ export async function removeExactDuplicates(formData: FormData) {
  * touch the chosen row's own word inside its own deck.
  */
 export async function resolveDuplicate(formData: FormData) {
+  await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
   const entryId = Number(field(formData, "entryId"));
   const translation = field(formData, "translation");
@@ -310,6 +336,7 @@ export async function resolveDuplicate(formData: FormData) {
  * moves, and every app that pulls the update gets it.
  */
 export async function approveWord(formData: FormData) {
+  await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
   const submissionId = Number(field(formData, "submissionId"));
   await approveSubmission(deckId, submissionId);
@@ -320,6 +347,7 @@ export async function approveWord(formData: FormData) {
 
 /** Declines a proposal. The dictionary is untouched; the app keeps its own copy. */
 export async function rejectWord(formData: FormData) {
+  await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
   const submissionId = Number(field(formData, "submissionId"));
   await rejectSubmission(deckId, submissionId);
@@ -335,6 +363,7 @@ export async function rejectWord(formData: FormData) {
  * All-or-nothing: one bad line rejects the whole paste.
  */
 export async function importEntries(formData: FormData) {
+  await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
   const raw = formData.get("text");
   const text = typeof raw === "string" ? raw : "";

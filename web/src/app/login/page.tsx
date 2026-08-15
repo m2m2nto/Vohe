@@ -14,11 +14,13 @@ export default async function LoginPage({
         <h1>Vohe Dictionaries</h1>
       </header>
 
-      {error && <p className="error">Wrong password.</p>}
+      {error && <p className="error">Wrong username or password.</p>}
 
       <form action={login} className="stack card" style={{ marginTop: 20 }}>
+        <label htmlFor="username">Username</label>
+        <input id="username" name="username" type="text" autoFocus />
         <label htmlFor="password">Password</label>
-        <input id="password" name="password" type="password" autoFocus />
+        <input id="password" name="password" type="password" />
         <div>
           <SubmitButton className="primary">Sign in</SubmitButton>
         </div>

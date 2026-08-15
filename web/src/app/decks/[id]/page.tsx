@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   getDeck,
   listEntries,
   listLanguages,
   listPendingSubmissions,
 } from "@/lib/db";
+import { currentUser } from "@/lib/session";
 import { findDuplicates, redundantEntryIds } from "@/lib/duplicates";
+import { NoAccess } from "../../NoAccess";
 import { SubmitButton } from "../../SubmitButton";
 import {
   addEntry,
@@ -31,6 +33,10 @@ export default async function DeckPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;
 }) {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "admin") return <NoAccess username={user.username} />;
+
   const { id } = await params;
   const { error } = await searchParams;
 
@@ -91,6 +97,9 @@ export default async function DeckPage({
                       (replaces &ldquo;{submission.current_translation}&rdquo;)
                     </span>
                   )}
+                {submission.proposer && (
+                  <span className="meta"> — from {submission.proposer}</span>
+                )}
               </span>
               <form action={approveWord}>
                 <input type="hidden" name="deckId" value={deckId} />

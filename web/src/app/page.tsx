@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { listDecks, listLanguages } from "@/lib/db";
+import { currentUser } from "@/lib/session";
+import { NoAccess } from "./NoAccess";
 import { SubmitButton } from "./SubmitButton";
 import { createDeck, logout } from "./actions";
 
@@ -10,6 +13,10 @@ export default async function LibraryPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "admin") return <NoAccess username={user.username} />;
+
   const { error } = await searchParams;
   const decks = await listDecks();
   const languages = await listLanguages();

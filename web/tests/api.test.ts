@@ -2,32 +2,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-process.env.AUTH_SECRET = "test-secret";
-process.env.ADMIN_PASSWORD = "correct horse";
-process.env.API_TOKEN = "token-abc";
-
-const { isValidApiToken } = await import("../src/lib/auth.ts");
 const { parseSubmissionsBody, MAX_SUBMISSION_ENTRIES } = await import(
   "../src/lib/api.ts"
 );
-
-test("only the exact bearer token is accepted", () => {
-  assert.equal(isValidApiToken("Bearer token-abc"), true);
-  assert.equal(isValidApiToken("Bearer token-abc "), true); // trailing space trimmed
-  assert.equal(isValidApiToken("Bearer token-ab"), false);
-  assert.equal(isValidApiToken("Bearer TOKEN-ABC"), false);
-  assert.equal(isValidApiToken("token-abc"), false); // no scheme
-  assert.equal(isValidApiToken("Basic token-abc"), false);
-  assert.equal(isValidApiToken(""), false);
-  assert.equal(isValidApiToken(null), false);
-});
-
-test("the API stays closed when no token is configured", () => {
-  delete process.env.API_TOKEN;
-  assert.equal(isValidApiToken("Bearer token-abc"), false);
-  assert.equal(isValidApiToken("Bearer "), false);
-  process.env.API_TOKEN = "token-abc";
-});
 
 test("submissions are trimmed, de-duplicated, and kept in order", () => {
   const parsed = parseSubmissionsBody({

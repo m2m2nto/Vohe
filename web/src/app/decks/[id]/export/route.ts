@@ -1,4 +1,5 @@
 import { getDeck, listEntries } from "@/lib/db";
+import { currentUser } from "@/lib/session";
 import { exportFilename, serializeDeck } from "@/lib/deckFormat";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +8,11 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // A route handler renders no page, so it asks for itself: the download is
+  // part of the editor, not something a member's session opens.
+  const user = await currentUser();
+  if (user?.role !== "admin") return new Response("Forbidden", { status: 403 });
+
   const { id } = await params;
   const deckId = Number(id);
   if (!Number.isInteger(deckId)) {

@@ -60,3 +60,18 @@ insert into languages (name)
     select language2 from decks
   ) as used
   on conflict (name) do nothing;
+
+-- Named accounts, the one identity for both the editor and the app. The hash
+-- is self-describing -- algorithm, iterations and salt -- so its cost can be
+-- raised later without a data migration. Only an admin may open the editor.
+create table if not exists users (
+  id serial primary key,
+  username text not null unique,
+  password_hash text not null,
+  role text not null default 'member',
+  created_at timestamptz not null default now()
+);
+
+-- Who sent a proposal. Nullable, so every proposal made before accounts
+-- existed stays valid and simply shows as unattributed.
+alter table submissions add column if not exists submitted_by integer references users(id);

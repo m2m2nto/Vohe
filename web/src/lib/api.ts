@@ -65,4 +65,4 @@ export function jsonError(status: number, message: string): Response {
 }
 
 export const UNAUTHORIZED = () =>
-  jsonError(401, "Missing or invalid API token.");
+  jsonError(401, "Missing or invalid session token.");

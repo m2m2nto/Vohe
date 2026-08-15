@@ -1,19 +1,17 @@
 import Foundation
 
-// Copy this file to BackendDefaults.swift and fill in your own values:
+// Copy this file to BackendDefaults.swift and fill in your own value:
 //
 //     cp Vohe/Services/BackendDefaults.swift.template Vohe/Services/BackendDefaults.swift
 //
-// The copy is gitignored, so the token stays on your machine — this repository
-// is public. Leaving both values empty is fine: the app then starts with an
-// unconfigured server and works entirely on-device.
+// The copy is gitignored. Leaving the address empty is fine: the app then
+// starts with no server and works entirely on-device.
 
-/// Local-only defaults, so a fresh install doesn't have to type a 64-character
-/// token on a phone keyboard. Anything saved in Server settings wins from then
-/// on; these values are only the starting point.
+/// Local-only default, so a fresh install doesn't have to type the server
+/// address on a phone keyboard. There is nothing else to prefill — the app
+/// signs in with a username and a password, and keeps only the session token
+/// the server returns. Anything saved in Server settings wins from then on.
 enum BackendDefaults {
     /// e.g. "https://your-dictionaries.vercel.app"
     static let address = ""
-    /// The API_TOKEN set on the server.
-    static let token = ""
 }

@@ -8,6 +8,7 @@
     "start": "next start",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "db:seed": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/seed.mjs",
+    "user:create": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/create-user.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "dependencies": {

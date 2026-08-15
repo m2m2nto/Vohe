@@ -67,9 +67,9 @@ domaća zadaća - compiti
 
 ## Shared dictionaries on the web (optional)
 
-[`web/`](web/README.md) is a small password-protected Next.js app, deployed on Vercel, that keeps dictionaries in Postgres. Useful for typing words on a laptop.
+[`web/`](web/README.md) is a small Next.js app behind named accounts, deployed on Vercel, that keeps dictionaries in Postgres. Useful for typing words on a laptop.
 
-You can still download a `.txt` and import it with **+**. Or connect the app to it — cloud button in the library → **Server settings** → the address and the `API_TOKEN`. To have those pre-filled on a fresh install, copy the template once (the copy is gitignored, so your token stays out of this public repo):
+You can still download a `.txt` and import it with **+**. Or connect the app to it — cloud button in the library → **Server settings** → the address, then your username and password. Only the session the server hands back is kept, in the iPhone keychain; the password is never stored. To have the address pre-filled on a fresh install, copy the template once (the copy is gitignored):
 
 ```sh
 cp Vohe/Services/BackendDefaults.swift.template Vohe/Services/BackendDefaults.swift
@@ -81,7 +81,7 @@ What the connection gives you:
 - **Updates are yours to take**: when a newer version is published, the deck shows an **Update** badge. Nothing changes until you tap Update in the deck.
 - **Nothing is ever deleted from the phone.** A word removed from the dictionary stays on the device, marked "only on this iPhone" — as are words you added yourself. Practice history (box, due date, seen/wrong counts) survives every update, including when an updated translation replaces the old one.
 - **Words you add go back for review.** "Send N words for review" queues them on the server; they join the dictionary only when you approve them in the editor. A word waiting for review is never overwritten by an update.
-- **No connection, no problem.** Everything above is on-demand. Without a server, without a token, or without signal, the app behaves exactly as it always has — all decks, sessions, scheduling and reminders are local.
+- **No connection, no problem.** Everything above is on-demand. Without a server, without signing in, or without signal, the app behaves exactly as it always has — all decks, sessions, scheduling and reminders are local.
 
 ## Building it on your iPhone
 

@@ -1,14 +1,12 @@
 import { UNAUTHORIZED } from "@/lib/api";
-import { isValidApiToken } from "@/lib/auth";
 import { listDecks } from "@/lib/db";
+import { apiUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 /** The catalog the iOS app browses. `version` drives its update badge. */
 export async function GET(request: Request) {
-  if (!isValidApiToken(request.headers.get("authorization"))) {
-    return UNAUTHORIZED();
-  }
+  if (!(await apiUser(request))) return UNAUTHORIZED();
 
   const decks = await listDecks();
   return Response.json({

@@ -1,6 +1,6 @@
 import { UNAUTHORIZED, jsonError } from "@/lib/api";
-import { isValidApiToken } from "@/lib/auth";
 import { getDeck, listEntries } from "@/lib/db";
+import { apiUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +9,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!isValidApiToken(request.headers.get("authorization"))) {
-    return UNAUTHORIZED();
-  }
+  if (!(await apiUser(request))) return UNAUTHORIZED();
 
   const { id } = await params;
   const deckId = Number(id);

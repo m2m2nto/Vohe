@@ -15,6 +15,14 @@ export function sql(): NeonQueryFunction<false, false> {
   return client;
 }
 
+export type UserRow = {
+  id: number;
+  username: string;
+  password_hash: string;
+  /** `admin` opens the editor. Anything else is an app-only account. */
+  role: string;
+};
+
 export type DeckRow = {
   id: number;
   name: string;
@@ -52,7 +60,35 @@ export type SubmissionRow = {
   submitted_at: string;
   /** The approved translation this proposal would replace, when the word exists. */
   current_translation: string | null;
+  /**
+   * Who sent it. Null for proposals made before accounts existed, or whose
+   * account has since been deleted.
+   */
+  proposer: string | null;
 };
+
+/** Sign-in reads the stored hash from here and verifies against it. */
+export async function findUserByUsername(
+  username: string,
+): Promise<UserRow | null> {
+  const rows = (await sql()`
+    select id, username, password_hash, role from users
+    where username = ${username}
+  `) as UserRow[];
+  return rows[0] ?? null;
+}
+
+/**
+ * Every request resolves its token's user id through here rather than trusting
+ * a role carried in the token, so demoting or deleting an account takes effect
+ * on the next request instead of when its token expires.
+ */
+export async function getUser(id: number): Promise<UserRow | null> {
+  const rows = (await sql()`
+    select id, username, password_hash, role from users where id = ${id}
+  `) as UserRow[];
+  return rows[0] ?? null;
+}
 
 export async function listDecks(): Promise<DeckRow[]> {
   return (await sql()`
@@ -116,8 +152,10 @@ export async function listPendingSubmissions(
     select s.id, s.word, s.translation, s.submitted_at,
            (select e.translation from entries e
              where e.deck_id = s.deck_id and e.word = s.word
-             order by e.position, e.id limit 1) as current_translation
+             order by e.position, e.id limit 1) as current_translation,
+           u.username as proposer
     from submissions s
+    left join users u on u.id = s.submitted_by
     where s.deck_id = ${deckId} and s.status = 'pending'
     order by s.submitted_at, s.id
   `) as SubmissionRow[];
@@ -126,18 +164,26 @@ export async function listPendingSubmissions(
 /**
  * Stores proposals as pending. Duplicates of a proposal already waiting are
  * dropped by the partial unique index, so the app can re-send freely.
- * Returns how many rows were actually created.
+ * Returns how many rows were actually created. Two people proposing the same
+ * word for the same dictionary therefore stay one pending row, credited to
+ * whoever sent it first.
  */
 export async function insertSubmissions(
   deckId: number,
   entries: { word: string; translation: string }[],
+  userId: number,
 ): Promise<number> {
   const rows = (await sql().query(
-    `insert into submissions (deck_id, word, translation)
-     select $1, w, t from unnest($2::text[], $3::text[]) as u(w, t)
+    `insert into submissions (deck_id, word, translation, submitted_by)
+     select $1, w, t, $4 from unnest($2::text[], $3::text[]) as u(w, t)
      on conflict do nothing
      returning id`,
-    [deckId, entries.map((e) => e.word), entries.map((e) => e.translation)],
+    [
+      deckId,
+      entries.map((e) => e.word),
+      entries.map((e) => e.translation),
+      userId,
+    ],
   )) as { id: number }[];
   return rows.length;
 }

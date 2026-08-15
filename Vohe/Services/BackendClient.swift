@@ -47,9 +47,9 @@ enum BackendError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            return "Add the dictionary server address and access token first."
+            return "Add the dictionary server address and sign in first."
         case .unauthorized:
-            return "The server rejected the access token."
+            return "Sign in to the dictionary server again."
         case .unreachable:
             return "Can't reach the dictionary server. Your decks on this device are unaffected."
         case .notFound:
@@ -67,6 +67,22 @@ enum BackendError: LocalizedError {
 struct BackendClient {
     let settings: BackendSettings
     var session: URLSession = .shared
+
+    /// Trades a username and a password for the session token every other call
+    /// carries. The only request that sends no token of its own, and the only
+    /// place the password is ever used — it is not stored.
+    func signIn(username: String, password: String) async throws -> String {
+        struct Payload: Decodable { let token: String }
+        let data = try await send(
+            path: "/api/session",
+            method: "POST",
+            body: try JSONSerialization.data(
+                withJSONObject: ["username": username, "password": password]
+            ),
+            authorized: false
+        )
+        return try decode(Payload.self, from: data).token
+    }
 
     func catalog() async throws -> [RemoteDictionarySummary] {
         struct Payload: Decodable { let decks: [RemoteDictionarySummary] }
@@ -97,17 +113,25 @@ struct BackendClient {
         try await send(path: path, method: "GET", body: nil)
     }
 
-    private func send(path: String, method: String, body: Data?) async throws -> Data {
-        guard settings.isConfigured, let root = settings.url else {
-            throw BackendError.notConfigured
-        }
+    /// `authorized: false` is signing in, which has no token to send yet and so
+    /// needs an address and nothing more.
+    private func send(
+        path: String,
+        method: String,
+        body: Data?,
+        authorized: Bool = true
+    ) async throws -> Data {
+        guard let root = settings.url else { throw BackendError.notConfigured }
+        if authorized, !settings.isConfigured { throw BackendError.notConfigured }
         guard let url = URL(string: root.absoluteString + path) else {
             throw BackendError.notConfigured
         }
 
         var request = URLRequest(url: url, timeoutInterval: 20)
         request.httpMethod = method
-        request.setValue("Bearer \(settings.token)", forHTTPHeaderField: "Authorization")
+        if authorized {
+            request.setValue("Bearer \(settings.token)", forHTTPHeaderField: "Authorization")
+        }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body {
             request.httpBody = body
