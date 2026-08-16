@@ -9,15 +9,17 @@ import {
 import { currentUser } from "@/lib/session";
 import { findDuplicates, redundantEntryIds } from "@/lib/duplicates";
 import { NoAccess } from "../../NoAccess";
+import { SelectAll } from "../../SelectAll";
 import { SubmitButton } from "../../SubmitButton";
 import {
   addEntry,
-  approveWord,
+  approveWords,
   deleteDeck,
   deleteEntry,
   importEntries,
   logout,
-  rejectWord,
+  proposeEntries,
+  rejectWords,
   removeExactDuplicates,
   resolveDuplicate,
   updateDeck,
@@ -31,14 +33,14 @@ export default async function DeckPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string }>;
 }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   if (user.role !== "admin") return <NoAccess username={user.username} />;
 
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, notice } = await searchParams;
 
   const deckId = Number(id);
   if (!Number.isInteger(deckId)) notFound();
@@ -76,43 +78,53 @@ export default async function DeckPage({
       </p>
 
       {error && <p className="error">{error}</p>}
+      {notice && <p className="notice">{notice}</p>}
 
       {pending.length > 0 && (
         <>
-          <h2>From the app — waiting for review ({pending.length})</h2>
+          <h2>Waiting for review ({pending.length})</h2>
           <p className="hint">
-            Words sent from Vohe on the phone. They are not part of this
-            dictionary, the exported <code>.txt</code>, or any other device
-            until you approve them.
+            Words sent from Vohe on the phone, and lists pasted for review
+            below. They are not part of this dictionary, the exported{" "}
+            <code>.txt</code>, or any other device until you approve them.
           </p>
-          {pending.map((submission) => (
-            <div className="row" key={submission.id}>
-              <span>{submission.word}</span>
-              <span>
-                {submission.translation}
-                {submission.current_translation !== null &&
-                  submission.current_translation !== submission.translation && (
-                    <span className="meta">
-                      {" "}
-                      (replaces &ldquo;{submission.current_translation}&rdquo;)
-                    </span>
+          <form action={approveWords} className="stack card">
+            <input type="hidden" name="deckId" value={deckId} />
+            <SelectAll name="submissionId" label="Tick every word below" />
+            {pending.map((submission) => (
+              <label
+                className="row"
+                key={submission.id}
+                style={{ gridTemplateColumns: "auto 1fr 2fr" }}
+              >
+                <input type="checkbox" name="submissionId" value={submission.id} />
+                <span>{submission.word}</span>
+                <span>
+                  {submission.translation}
+                  {submission.current_translation !== null &&
+                    submission.current_translation !==
+                      submission.translation && (
+                      <span className="meta">
+                        {" "}
+                        (replaces &ldquo;{submission.current_translation}&rdquo;)
+                      </span>
+                    )}
+                  {submission.proposer && (
+                    <span className="meta"> — from {submission.proposer}</span>
                   )}
-                {submission.proposer && (
-                  <span className="meta"> — from {submission.proposer}</span>
-                )}
+                </span>
+              </label>
+            ))}
+            <div className="inline">
+              <SubmitButton className="primary">Approve selected</SubmitButton>
+              <SubmitButton className="danger" formAction={rejectWords}>
+                Reject selected
+              </SubmitButton>
+              <span className="meta">
+                Approving moves the version once, however many you tick.
               </span>
-              <form action={approveWord}>
-                <input type="hidden" name="deckId" value={deckId} />
-                <input type="hidden" name="submissionId" value={submission.id} />
-                <SubmitButton className="primary">Approve</SubmitButton>
-              </form>
-              <form action={rejectWord}>
-                <input type="hidden" name="deckId" value={deckId} />
-                <input type="hidden" name="submissionId" value={submission.id} />
-                <SubmitButton className="danger">Reject</SubmitButton>
-              </form>
             </div>
-          ))}
+          </form>
         </>
       )}
 
@@ -255,6 +267,28 @@ export default async function DeckPage({
         </p>
         <div>
           <SubmitButton className="primary">Import</SubmitButton>
+        </div>
+      </form>
+
+      <h2>Paste a list for review</h2>
+      <form action={proposeEntries} className="stack card">
+        <input type="hidden" name="deckId" value={deckId} />
+        <textarea
+          name="text"
+          aria-label="Words to send for review"
+          placeholder={`ciao - bok\ngrazie - hvala\ncosì-così - tako-tako`}
+        />
+        <p className="hint">
+          Same format, but nothing joins the dictionary yet: these go to{" "}
+          <strong>Waiting for review</strong> at the top of this page, for words
+          you did not write yourself. A word this dictionary already carries
+          with the same translation is dropped rather than queued; one it
+          carries with a different translation is queued as a replacement. A
+          malformed line is skipped and reported — the rest of the paste still
+          lands.
+        </p>
+        <div>
+          <SubmitButton className="primary">Send for review</SubmitButton>
         </div>
       </form>
 

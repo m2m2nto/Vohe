@@ -13,16 +13,18 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import {
-  approveSubmission,
+  approveSubmissions,
   bumpDeckVersion,
   countAdmins,
   createUser,
   deleteUser,
   findUserByUsername,
+  getDeck,
   getUser,
+  insertSubmissions,
   listEntries,
   listLanguages,
-  rejectSubmission,
+  rejectSubmissions,
   setUserPassword,
   setUserRole,
   sql,
@@ -37,16 +39,26 @@ import {
   validateLanguageChoice,
 } from "@/lib/deckFormat";
 import { findDuplicates, redundantEntryIds } from "@/lib/duplicates";
+import { planProposals, type ProposalPlan } from "@/lib/proposals";
 
 function field(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === "string" ? value.trim() : "";
 }
 
-function deckPath(deckId: number, error?: string): string {
-  return error
-    ? `/decks/${deckId}?error=${encodeURIComponent(error)}`
-    : `/decks/${deckId}`;
+/**
+ * A notice reports what an action did when the count is the point — how many
+ * words were queued, skipped or added. It rides the URL like the error does, so
+ * it survives the redirect that follows every write.
+ */
+function deckPath(deckId: number, error?: string, notice?: string): string {
+  if (error) return `/decks/${deckId}?error=${encodeURIComponent(error)}`;
+  if (notice) return `/decks/${deckId}?notice=${encodeURIComponent(notice)}`;
+  return `/decks/${deckId}`;
+}
+
+function plural(count: number, noun: string): string {
+  return count === 1 ? noun : `${noun}s`;
 }
 
 function languagesPath(error?: string): string {
@@ -344,29 +356,51 @@ export async function resolveDuplicate(formData: FormData) {
   redirect(deckPath(deckId));
 }
 
-/**
- * Accepts a word proposed by the iOS app: it joins the dictionary, the version
- * moves, and every app that pulls the update gets it.
- */
-export async function approveWord(formData: FormData) {
-  await requireAdmin();
-  const deckId = Number(field(formData, "deckId"));
-  const submissionId = Number(field(formData, "submissionId"));
-  await approveSubmission(deckId, submissionId);
-  revalidatePath("/");
-  revalidatePath(`/decks/${deckId}`);
-  redirect(deckPath(deckId));
+/** The proposals ticked in the review queue, ignoring anything unparseable. */
+function checkedSubmissionIds(formData: FormData): number[] {
+  return formData
+    .getAll("submissionId")
+    .map((value) => Number(value))
+    .filter((id) => Number.isInteger(id));
 }
 
-/** Declines a proposal. The dictionary is untouched; the app keeps its own copy. */
-export async function rejectWord(formData: FormData) {
+/**
+ * Accepts the ticked proposals: each joins the dictionary, the version moves
+ * once for the batch, and every app that pulls the update gets them.
+ */
+export async function approveWords(formData: FormData) {
   await requireAdmin();
   const deckId = Number(field(formData, "deckId"));
-  const submissionId = Number(field(formData, "submissionId"));
-  await rejectSubmission(deckId, submissionId);
+  const ids = checkedSubmissionIds(formData);
+  if (ids.length === 0) {
+    redirect(deckPath(deckId, "Tick the words to approve first."));
+  }
+  const approved = await approveSubmissions(deckId, ids);
   revalidatePath("/");
   revalidatePath(`/decks/${deckId}`);
-  redirect(deckPath(deckId));
+  redirect(
+    deckPath(deckId, undefined, `${approved} ${plural(approved, "word")} added.`),
+  );
+}
+
+/** Declines the ticked proposals. The dictionary is untouched; each word can be proposed again. */
+export async function rejectWords(formData: FormData) {
+  await requireAdmin();
+  const deckId = Number(field(formData, "deckId"));
+  const ids = checkedSubmissionIds(formData);
+  if (ids.length === 0) {
+    redirect(deckPath(deckId, "Tick the words to reject first."));
+  }
+  const rejected = await rejectSubmissions(deckId, ids);
+  revalidatePath("/");
+  revalidatePath(`/decks/${deckId}`);
+  redirect(
+    deckPath(
+      deckId,
+      undefined,
+      `${rejected} ${plural(rejected, "word")} rejected.`,
+    ),
+  );
 }
 
 /**
@@ -535,4 +569,65 @@ export async function importEntries(formData: FormData) {
 
   revalidatePath(`/decks/${deckId}`);
   redirect(deckPath(deckId));
+}
+
+/** Enough of the skipped lines to fix the source; the rest is a count. */
+const PROBLEMS_SHOWN = 5;
+
+function proposalNotice(plan: ProposalPlan, queued: number): string {
+  const parts = [`${queued} ${plural(queued, "word")} sent for review`];
+
+  const alreadyWaiting = plan.queued.length - queued;
+  if (alreadyWaiting > 0) parts.push(`${alreadyWaiting} already waiting`);
+  if (plan.unchanged > 0) {
+    parts.push(`${plan.unchanged} already in the dictionary`);
+  }
+
+  if (plan.problems.length > 0) {
+    const shown = plan.problems
+      .slice(0, PROBLEMS_SHOWN)
+      .map((problem) => `line ${problem.line} — ${problem.reason}`);
+    const rest = plan.problems.length - shown.length;
+    if (rest > 0) shown.push(`and ${rest} more`);
+    parts.push(`${plan.problems.length} skipped (${shown.join("; ")})`);
+  }
+
+  return `${parts.join(" · ")}.`;
+}
+
+/**
+ * Sends a pasted list to the review queue instead of straight into the
+ * dictionary — the path for words a language model wrote, which are worth
+ * having and worth reading before they reach anyone's phone.
+ *
+ * Words the dictionary already carries verbatim are dropped rather than
+ * queued: a list generated from the exported .txt repeats plenty of them, and
+ * the queue is for decisions. Nothing here moves the version.
+ */
+export async function proposeEntries(formData: FormData) {
+  const admin = await requireAdmin();
+  const deckId = Number(field(formData, "deckId"));
+  const raw = formData.get("text");
+  const text = typeof raw === "string" ? raw : "";
+
+  const deck = await getDeck(deckId);
+  if (!deck) redirect("/");
+
+  const plan = planProposals(
+    text,
+    `${deck.language1}-${deck.language2}`,
+    await listEntries(deckId),
+  );
+
+  const pasted =
+    plan.queued.length + plan.unchanged + plan.problems.length;
+  if (pasted === 0) redirect(deckPath(deckId, "Nothing to send for review."));
+
+  const queued =
+    plan.queued.length > 0
+      ? await insertSubmissions(deckId, plan.queued, admin.id)
+      : 0;
+
+  revalidatePath(`/decks/${deckId}`);
+  redirect(deckPath(deckId, undefined, proposalNotice(plan, queued)));
 }

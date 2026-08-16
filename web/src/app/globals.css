@@ -217,6 +217,15 @@ button[data-pending]::after {
   font-size: 14px;
 }
 
+.notice {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+
 .hint {
   color: var(--muted);
   font-size: 13px;

@@ -126,7 +126,7 @@ _Avoid_: "out of sync", "stale".
 A Card in a Linked Deck that the Dictionary doesn't carry (`Card.remoteBack == nil`) — either added on the device or dropped from the Dictionary upstream. Marked with an `iphone` icon in the cards list. Updates never delete Cards, so this is how "the Dictionary lost it, you didn't" is expressed.
 
 **Proposal**:
-A word sent from the app to the backend's review queue (`submissions` table, `status = 'pending'`). A Proposal is invisible to every export, API read, and other device until approved in the editor. Approving applies it to the Dictionary and bumps the Version; rejecting leaves the Dictionary untouched and the Card local.
+A word waiting in the backend's review queue (`submissions` table, `status = 'pending'`) — sent from the app, or pasted into the editor for review rather than added. A Proposal is invisible to every export, API read, and other device until approved in the editor. Approving applies it to the Dictionary and bumps the Version; rejecting leaves the Dictionary untouched and the Card local. Approving a batch bumps the Version once.
 _Avoid_: "upload", "push", "sync up" — nothing the app sends becomes shared by itself.
 
 **Waiting for review**:

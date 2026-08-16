@@ -12,9 +12,12 @@ import { useFormStatus } from "react-dom";
 export function SubmitButton({
   children,
   className,
+  formAction,
 }: {
   children: React.ReactNode;
   className?: string;
+  /** Sends this button's form somewhere other than its own action. */
+  formAction?: React.ComponentProps<"button">["formAction"];
 }) {
   const { pending } = useFormStatus();
 
@@ -22,6 +25,7 @@ export function SubmitButton({
     <button
       type="submit"
       className={className}
+      formAction={formAction}
       disabled={pending}
       aria-busy={pending}
       data-pending={pending || undefined}

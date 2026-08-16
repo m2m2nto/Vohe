@@ -19,7 +19,7 @@ export type ParsedDeck = {
  * ("tako-tako - cosi-cosi"). A line without a spaced hyphen falls back to the
  * first bare one, which keeps older files ("cane-pas") readable.
  */
-function splitPair(s: string): [string, string] | null {
+export function splitPair(s: string): [string, string] | null {
   const spaced = s.indexOf(" - ");
   const i = spaced === -1 ? s.indexOf("-") : spaced;
   if (i === -1) return null;

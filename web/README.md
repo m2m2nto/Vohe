@@ -13,6 +13,7 @@ only once you approve them.
 ```
 src/lib/deckFormat.ts   mirror of DeckParser.swift (parse, serialize, validate)
 src/lib/duplicates.ts   groups repeated words into "identical" and "needs review"
+src/lib/proposals.ts    reads a pasted list against a dictionary: new, already there, unusable
 src/lib/auth.ts         password hashing + HMAC-signed session tokens (no database)
 src/lib/session.ts      turns a token into the account that sent it
 src/lib/accountGuards.ts  refuses the moves that would leave the editor adminless
@@ -20,6 +21,7 @@ src/lib/api.ts          JSON API shapes and submission validation
 src/lib/db.ts           Neon Postgres queries
 src/proxy.ts            locks every route except /login and /api
 src/app/SubmitButton.tsx submit button that locks and spins while its action runs
+src/app/SelectAll.tsx   ticks every checkbox in a form, for reviewing a batch at once
 src/app/page.tsx        dictionary list + create
 src/app/languages/      the language labels the two menus offer
 src/app/users/          accounts: create with a generated password, reset, delete
@@ -35,6 +37,7 @@ tests/duplicates.test.ts   repeated-word grouping, incl. the real sample's count
 tests/auth.test.ts         password hashing + session tokens + generated passwords
 tests/accountGuards.test.ts  no allowed move leaves the editor without an admin
 tests/api.test.ts          submission validation
+tests/proposals.test.ts    what a pasted list means for the dictionary it is pasted into
 ```
 
 ## One-time setup
@@ -114,8 +117,11 @@ npm run build        # what Vercel runs
 1. Sign in with your username and password.
 2. Pick a dictionary, or create one (name + the two languages, chosen from the
    menus **Languages** fills — see below).
-3. Add words one at a time, or paste a whole list into **Paste a list**.
-4. Approve or reject anything sitting in **From the app — waiting for review**.
+3. Add words one at a time, or paste a whole list into **Paste a list**. For a
+   list you did not write — see [expanding a dictionary with two chat
+   models](../docs/expanding-dictionaries-with-ai.md) — use **Paste a list for
+   review** instead, which queues it rather than adding it.
+4. Tick and approve (or reject) anything sitting in **Waiting for review**.
 5. Settle anything in **Repeated words** (see below).
 6. **download .txt** → open it in Vohe via **+**, or just let the phone pull the
    new version.
@@ -203,8 +209,10 @@ back to the first bare `-` when there is none):
 - neither language label may contain `-`, since the header line has no spaces;
 - nothing may start with `#` (comment) or be empty.
 
-Pasted text is rejected as a whole if any line breaks these rules, so a bad
-paste never half-imports.
+**Paste a list** rejects the text as a whole if any line breaks these rules, so
+a bad paste never half-imports. **Paste a list for review** skips the offending
+line and reports it by number instead: its input is machine-written and long,
+and one stray hyphen must not cost the other two hundred pairs.
 
 ## Moving a running deployment onto accounts
 
