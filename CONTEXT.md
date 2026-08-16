@@ -139,8 +139,12 @@ A named user held by the backend (`users` table): a username, a hashed password,
 _Avoid_: "profile", "login" as a noun, or implying practice data follows an Account between devices.
 
 **Admin**:
-An Account with `role = 'admin'`. The only role that opens the editor, where dictionaries are written and Proposals are approved. Accounts are created from the command line (`npm run user:create`); there is no signup page and no self-service reset.
+An Account with `role = 'admin'`. The only role that opens the editor, where dictionaries are written, Proposals are approved, and Accounts are managed. There is no signup page and no self-service reset: an Admin creates every Account, and only an Admin can change one.
 _Avoid_: "owner", "superuser".
+
+**Temporary password**:
+The password the editor generates when an Admin creates an Account or resets one. Shown once, on the page that made it, and never again — only its hash is stored. "Temporary" is a convention, not a rule: nothing forces a change, because a Member has no surface on which to change one. Losing it means resetting it.
+_Avoid_: "initial password", "default password" (there is no default), implying the holder must or can rotate it.
 
 **Member**:
 An Account with any other role. It signs in from the app, pulls Dictionaries and sends Proposals, and is refused by the editor with a plain page rather than a redirect.

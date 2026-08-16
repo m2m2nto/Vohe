@@ -67,6 +67,71 @@ export type SubmissionRow = {
   proposer: string | null;
 };
 
+export type UserListRow = {
+  id: number;
+  username: string;
+  role: string;
+  created_at: string;
+  /**
+   * Proposals this account has sent. They outlive it: deleting the account
+   * sets `submitted_by` back to null rather than removing them.
+   */
+  proposal_count: number;
+};
+
+/** The accounts page. Deliberately never selects `password_hash`. */
+export async function listUsers(): Promise<UserListRow[]> {
+  return (await sql()`
+    select u.id, u.username, u.role, u.created_at,
+           (select count(*)::int from submissions s where s.submitted_by = u.id)
+             as proposal_count
+    from users u
+    order by u.username
+  `) as UserListRow[];
+}
+
+/**
+ * Guards the one irreversible mistake this page can make: demoting or deleting
+ * the last account that can still open the editor.
+ */
+export async function countAdmins(): Promise<number> {
+  const [{ n }] = (await sql()`
+    select count(*)::int as n from users where role = 'admin'
+  `) as { n: number }[];
+  return n;
+}
+
+/** Throws on a duplicate username, which the action turns into a message. */
+export async function createUser(
+  username: string,
+  passwordHash: string,
+  role: string,
+): Promise<void> {
+  await sql()`
+    insert into users (username, password_hash, role)
+    values (${username}, ${passwordHash}, ${role})
+  `;
+}
+
+export async function setUserPassword(
+  id: number,
+  passwordHash: string,
+): Promise<void> {
+  await sql()`update users set password_hash = ${passwordHash} where id = ${id}`;
+}
+
+export async function setUserRole(id: number, role: string): Promise<void> {
+  await sql()`update users set role = ${role} where id = ${id}`;
+}
+
+/**
+ * The account's tokens stop working on their next request, because every one
+ * of them resolves its user id against this table rather than trusting itself.
+ */
+export async function deleteUser(id: number): Promise<void> {
+  await sql()`delete from users where id = ${id}`;
+}
+
 /** Sign-in reads the stored hash from here and verifies against it. */
 export async function findUserByUsername(
   username: string,

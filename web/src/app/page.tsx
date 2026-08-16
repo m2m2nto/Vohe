@@ -27,6 +27,7 @@ export default async function LibraryPage({
         <h1>Vohe Dictionaries</h1>
         <span className="inline">
           <Link href="/languages">Languages</Link>
+          <Link href="/users">Accounts</Link>
           <form action={logout}>
             <SubmitButton>Sign out</SubmitButton>
           </form>

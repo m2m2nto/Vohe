@@ -8,18 +8,27 @@ import {
   SESSION_COOKIE,
   TOKEN_MAX_AGE_SECONDS,
   createToken,
+  generatePassword,
+  hashPassword,
   verifyPassword,
 } from "@/lib/auth";
 import {
   approveSubmission,
   bumpDeckVersion,
+  countAdmins,
+  createUser,
+  deleteUser,
   findUserByUsername,
+  getUser,
   listEntries,
   listLanguages,
   rejectSubmission,
+  setUserPassword,
+  setUserRole,
   sql,
 } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { refuseDelete, refuseRoleChange } from "@/lib/accountGuards";
 import {
   normalizeName,
   parseDeckText,
@@ -42,6 +51,10 @@ function deckPath(deckId: number, error?: string): string {
 
 function languagesPath(error?: string): string {
   return error ? `/languages?error=${encodeURIComponent(error)}` : "/languages";
+}
+
+function usersPath(error?: string): string {
+  return error ? `/users?error=${encodeURIComponent(error)}` : "/users";
 }
 
 /**
@@ -354,6 +367,108 @@ export async function rejectWord(formData: FormData) {
   revalidatePath("/");
   revalidatePath(`/decks/${deckId}`);
   redirect(deckPath(deckId));
+}
+
+/**
+ * What the accounts page shows after minting a password. It is returned to the
+ * caller rather than redirected to, so a password never lands in a URL, in
+ * browser history, or in a server's access log.
+ */
+export type PasswordResult =
+  | { ok: true; username: string; password: string }
+  | { ok: false; error: string }
+  | null;
+
+/** `admin` or `member` and nothing else, whatever the form happened to post. */
+function roleFrom(formData: FormData): string {
+  return field(formData, "role") === "admin" ? "admin" : "member";
+}
+
+/**
+ * Creates an account with a password nobody chose. The admin passes it on and
+ * it is never readable again — only its hash is kept — so losing it means
+ * resetting it rather than looking it up.
+ */
+export async function createAccount(
+  _previous: PasswordResult,
+  formData: FormData,
+): Promise<PasswordResult> {
+  await requireAdmin();
+  const username = field(formData, "username");
+  if (!username) return { ok: false, error: "Username is required." };
+
+  const password = generatePassword();
+  try {
+    await createUser(
+      username,
+      await hashPassword(password),
+      roleFrom(formData),
+    );
+  } catch (e) {
+    return {
+      ok: false,
+      error:
+        e instanceof Error && e.message.includes("users_username_key")
+          ? `"${username}" already has an account.`
+          : "Could not create the account.",
+    };
+  }
+
+  revalidatePath("/users");
+  return { ok: true, username, password };
+}
+
+/**
+ * A new password for an account whose own is lost. It does not sign that
+ * account out: a token carries a user id and an HMAC, never the password, so
+ * the phone keeps working until its token expires.
+ */
+export async function resetAccountPassword(
+  _previous: PasswordResult,
+  formData: FormData,
+): Promise<PasswordResult> {
+  await requireAdmin();
+  const account = await getUser(Number(field(formData, "userId")));
+  if (!account) return { ok: false, error: "That account no longer exists." };
+
+  const password = generatePassword();
+  await setUserPassword(account.id, await hashPassword(password));
+
+  revalidatePath("/users");
+  return { ok: true, username: account.username, password };
+}
+
+/** The refusals themselves live in accountGuards.ts, where they are testable. */
+export async function setAccountRole(formData: FormData) {
+  const me = await requireAdmin();
+  const role = roleFrom(formData);
+  const account = await getUser(Number(field(formData, "userId")));
+  if (!account) redirect(usersPath("That account no longer exists."));
+
+  const refusal = refuseRoleChange(me, account, role, await countAdmins());
+  if (refusal) redirect(usersPath(refusal));
+
+  await setUserRole(account.id, role);
+  revalidatePath("/users");
+  redirect(usersPath());
+}
+
+/**
+ * The account goes; the proposals it sent stay, back to unattributed, because
+ * submitted_by is "on delete set null". Its tokens stop working on their next
+ * request, since every one of them resolves its user id against the table.
+ */
+export async function deleteAccount(formData: FormData) {
+  const me = await requireAdmin();
+  const account = await getUser(Number(field(formData, "userId")));
+  if (!account) redirect(usersPath());
+
+  const refusal = refuseDelete(me, account, await countAdmins());
+  if (refusal) redirect(usersPath(refusal));
+
+  await deleteUser(account.id);
+  revalidatePath("/users");
+  redirect(usersPath());
 }
 
 /**

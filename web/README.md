@@ -15,12 +15,14 @@ src/lib/deckFormat.ts   mirror of DeckParser.swift (parse, serialize, validate)
 src/lib/duplicates.ts   groups repeated words into "identical" and "needs review"
 src/lib/auth.ts         password hashing + HMAC-signed session tokens (no database)
 src/lib/session.ts      turns a token into the account that sent it
+src/lib/accountGuards.ts  refuses the moves that would leave the editor adminless
 src/lib/api.ts          JSON API shapes and submission validation
 src/lib/db.ts           Neon Postgres queries
 src/proxy.ts            locks every route except /login and /api
 src/app/SubmitButton.tsx submit button that locks and spins while its action runs
 src/app/page.tsx        dictionary list + create
 src/app/languages/      the language labels the two menus offer
+src/app/users/          accounts: create with a generated password, reset, delete
 src/app/decks/[id]/     word editor, review queue, paste-import, settings, delete
 src/app/decks/[id]/export/route.ts   the .txt download
 src/app/api/decks/                   catalog, one dictionary, submissions
@@ -30,7 +32,8 @@ scripts/seed.mjs        imports ../samples/*.txt
 scripts/create-user.mjs creates an account or changes its password
 tests/deckFormat.test.ts   format round-trip against the real sample files
 tests/duplicates.test.ts   repeated-word grouping, incl. the real sample's counts
-tests/auth.test.ts         password hashing + session tokens
+tests/auth.test.ts         password hashing + session tokens + generated passwords
+tests/accountGuards.test.ts  no allowed move leaves the editor without an admin
 tests/api.test.ts          submission validation
 ```
 
@@ -77,21 +80,28 @@ npm run db:seed      # imports every ../samples/*.txt, skipping decks that exist
 `db:migrate` is idempotent and additive — re-run it after pulling changes that
 touch `db/schema.sql`.
 
-### 5. Create your account
+### 5. Create your first account
 
-There is no signup page: accounts are made from the command line, against
-whatever `DATABASE_URL` points at. An admin opens the editor; anyone else can
-only sign in from the app.
+There is no signup page. The first admin has to come from the command line,
+because there is nobody yet who could sign in and make one:
 
 ```sh
-npm run user:create -- <username> '<password>' --admin   # the editor
-npm run user:create -- <username> '<password>'           # app-only
+npm run user:create -- <username> '<password>' --admin
 ```
 
-Re-running it for a username that already exists changes that account's password
-and role — which is also how a forgotten password is reset. The script needs
-`DATABASE_URL` and nothing else, so it works even when the editor has locked you
-out.
+After that, use **Accounts** in the editor's header. It creates accounts with a
+generated password shown once, resets a password the same way, switches an
+account between admin and member, and deletes one. It refuses any move that
+would leave no admin — you cannot delete or demote your own account, or the
+last admin — because an editor with no admin cannot be repaired from the editor.
+
+Deleting an account leaves the words it proposed in the review queue, with no
+name against them.
+
+`user:create` stays as the way back in: it needs `DATABASE_URL` and nothing
+else, so it still works when nobody can sign in. Re-running it for an existing
+username changes that account's password **and its role**, so pass `--admin`
+again unless you mean to demote it.
 
 ## Daily use
 

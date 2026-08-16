@@ -122,6 +122,29 @@ export async function verifyPassword(
 }
 
 /**
+ * Lower case, no look-alikes: l, o, 0 and 1 are all absent, so a password read
+ * aloud or copied off a screen cannot be mistyped into a character that isn't
+ * in it. Exactly 32 long, so masking five random bits picks one without bias —
+ * a modulo over any other length would favour the first few characters.
+ */
+const PASSWORD_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
+
+/**
+ * A temporary password for an account an admin has just created or reset.
+ * Sixty bits of `crypto.getRandomValues`, grouped in fours because it is meant
+ * to be passed to a person rather than pasted.
+ */
+export function generatePassword(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  const chars = Array.from(bytes, (b) => PASSWORD_ALPHABET[b & 31]);
+  return [
+    chars.slice(0, 4).join(""),
+    chars.slice(4, 8).join(""),
+    chars.slice(8, 12).join(""),
+  ].join("-");
+}
+
+/**
  * `<audience>.<userId>.<issuedAt>.<mac>`. The audience gives the two surfaces
  * different lifetimes and stops a year-long app token being replayed as a
  * browser session.

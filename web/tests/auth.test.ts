@@ -7,6 +7,7 @@ process.env.AUTH_SECRET = "test-secret";
 const {
   createToken,
   readToken,
+  generatePassword,
   hashPassword,
   verifyPassword,
   DUMMY_PASSWORD_HASH,
@@ -81,6 +82,42 @@ test("a hash stored with a cheaper cost still verifies", async () => {
 
   assert.equal(await verifyPassword("correct horse", stored), true);
   assert.equal(await verifyPassword("wrong horse", stored), false);
+});
+
+test("a generated password is readable, unguessable and fresh each time", async () => {
+  const seen = new Set<string>();
+  for (let i = 0; i < 500; i++) {
+    const password = generatePassword();
+    assert.match(
+      password,
+      /^[abcdefghijkmnpqrstuvwxyz23456789]{4}-[abcdefghijkmnpqrstuvwxyz23456789]{4}-[abcdefghijkmnpqrstuvwxyz23456789]{4}$/,
+      password,
+    );
+    // The look-alikes have to stay out: someone reads this one aloud.
+    assert.equal(/[lo01]/.test(password), false, password);
+    seen.add(password);
+  }
+  assert.equal(seen.size, 500, "every password should differ");
+});
+
+test("a generated password is one a hash round-trips", async () => {
+  const password = generatePassword();
+  const stored = await hashPassword(password);
+  assert.equal(await verifyPassword(password, stored), true);
+  assert.equal(await verifyPassword(generatePassword(), stored), false);
+});
+
+test("the generator reaches its whole alphabet", () => {
+  // Guards the masking: a modulo over a 31-character alphabet would still
+  // produce every character, but `& 31` over a shorter one yields undefined.
+  const alphabet = "abcdefghijkmnpqrstuvwxyz23456789";
+  const seen = new Set(
+    Array.from({ length: 400 }, () => generatePassword().replaceAll("-", ""))
+      .join("")
+      .split(""),
+  );
+  assert.equal(seen.size, alphabet.length);
+  for (const c of alphabet) assert.ok(seen.has(c), `never produced ${c}`);
 });
 
 test("a token names its user and its surface", async () => {

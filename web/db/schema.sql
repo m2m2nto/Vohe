@@ -75,3 +75,12 @@ create table if not exists users (
 -- Who sent a proposal. Nullable, so every proposal made before accounts
 -- existed stays valid and simply shows as unattributed.
 alter table submissions add column if not exists submitted_by integer references users(id);
+
+-- Deleting an account must not take its proposals with it, nor be refused
+-- because it has any: they stay in the queue and go back to unattributed,
+-- which the review queue already renders. Dropped first so re-running this
+-- replaces whichever version of the constraint is already there.
+alter table submissions drop constraint if exists submissions_submitted_by_fkey;
+
+alter table submissions add constraint submissions_submitted_by_fkey
+  foreign key (submitted_by) references users(id) on delete set null;
