@@ -173,6 +173,40 @@ button[data-pending]::after {
   }
 }
 
+/* Sticky, not fixed: the link sits at the end of the word list and can only
+   lift off the page while that list is on screen, so nothing has to watch the
+   scroll position to decide when to show it. */
+.to-top {
+  position: sticky;
+  bottom: 16px;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  /* The strip is as wide as the list and floats over the rows, so only the
+     link inside it may take a click. */
+  pointer-events: none;
+}
+
+/* Wide enough that the 860px column leaves a margin either side: the link hangs
+   out in that margin rather than over the buttons of whichever row it passes.
+   Narrower than this there is nowhere to put it, so it floats over the rows. */
+@media (min-width: 1100px) {
+  .to-top {
+    margin-right: -128px;
+  }
+}
+
+.to-top a {
+  pointer-events: auto;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  text-decoration: none;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+}
+
 .card {
   border: 1px solid var(--line);
   border-radius: 10px;

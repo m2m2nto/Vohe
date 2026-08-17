@@ -59,7 +59,7 @@ export default async function DeckPage({
 
   return (
     <>
-      <header className="bar">
+      <header className="bar" id="top">
         <h1>{deck.name}</h1>
         <span className="inline">
           <Link href="/">All dictionaries</Link>
@@ -79,6 +79,62 @@ export default async function DeckPage({
 
       {error && <p className="error">{error}</p>}
       {notice && <p className="notice">{notice}</p>}
+
+      <h2>Dictionary settings</h2>
+      <form action={updateDeck} className="stack card">
+        <input type="hidden" name="deckId" value={deckId} />
+        <div className="row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+          <span>
+            <label htmlFor="name">Name</label>
+            <input id="name" name="name" type="text" defaultValue={deck.name} />
+          </span>
+          <span>
+            <label htmlFor="language1">Front language</label>
+            <select id="language1" name="language1" defaultValue={deck.language1}>
+              {languages.map((language) => (
+                <option key={language.id} value={language.name}>
+                  {language.name}
+                </option>
+              ))}
+            </select>
+          </span>
+          <span>
+            <label htmlFor="language2">Back language</label>
+            <select id="language2" name="language2" defaultValue={deck.language2}>
+              {languages.map((language) => (
+                <option key={language.id} value={language.name}>
+                  {language.name}
+                </option>
+              ))}
+            </select>
+          </span>
+        </div>
+        <p className="hint">
+          Both menus come from <Link href="/languages">Languages</Link>. Changing
+          either one rewrites the exported file&rsquo;s first line and offers the
+          phone an update.
+        </p>
+        <div>
+          <SubmitButton>Save settings</SubmitButton>
+        </div>
+      </form>
+
+      <form action={deleteDeck} className="stack card">
+        <input type="hidden" name="deckId" value={deckId} />
+        <label htmlFor="confirm">
+          Delete this dictionary and all {entries.length} words — type DELETE to
+          confirm
+        </label>
+        <div className="inline">
+          <input
+            id="confirm"
+            name="confirm"
+            type="text"
+            style={{ maxWidth: 160 }}
+          />
+          <SubmitButton className="danger">Delete dictionary</SubmitButton>
+        </div>
+      </form>
 
       {pending.length > 0 && (
         <>
@@ -253,97 +309,51 @@ export default async function DeckPage({
         </div>
       </form>
 
-      <h2>Dictionary settings</h2>
-      <form action={updateDeck} className="stack card">
-        <input type="hidden" name="deckId" value={deckId} />
-        <div className="row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-          <span>
-            <label htmlFor="name">Name</label>
-            <input id="name" name="name" type="text" defaultValue={deck.name} />
-          </span>
-          <span>
-            <label htmlFor="language1">Front language</label>
-            <select id="language1" name="language1" defaultValue={deck.language1}>
-              {languages.map((language) => (
-                <option key={language.id} value={language.name}>
-                  {language.name}
-                </option>
-              ))}
-            </select>
-          </span>
-          <span>
-            <label htmlFor="language2">Back language</label>
-            <select id="language2" name="language2" defaultValue={deck.language2}>
-              {languages.map((language) => (
-                <option key={language.id} value={language.name}>
-                  {language.name}
-                </option>
-              ))}
-            </select>
-          </span>
-        </div>
-        <p className="hint">
-          Both menus come from <Link href="/languages">Languages</Link>. Changing
-          either one rewrites the exported file&rsquo;s first line and offers the
-          phone an update.
-        </p>
-        <div>
-          <SubmitButton>Save settings</SubmitButton>
-        </div>
-      </form>
-
-      <form action={deleteDeck} className="stack card">
-        <input type="hidden" name="deckId" value={deckId} />
-        <label htmlFor="confirm">
-          Delete this dictionary and all {entries.length} words — type DELETE to
-          confirm
-        </label>
-        <div className="inline">
-          <input
-            id="confirm"
-            name="confirm"
-            type="text"
-            style={{ maxWidth: 160 }}
-          />
-          <SubmitButton className="danger">Delete dictionary</SubmitButton>
-        </div>
-      </form>
-
       <h2>Words ({entries.length})</h2>
-      <div className="row head">
-        <span>{deck.language1}</span>
-        <span>{deck.language2}</span>
-      </div>
-      {entries.map((entry) => (
-        <div className="row" key={entry.id}>
-          <form
-            action={updateEntry}
-            id={`edit-${entry.id}`}
-            style={{ display: "contents" }}
-          >
-            <input type="hidden" name="deckId" value={deckId} />
-            <input type="hidden" name="entryId" value={entry.id} />
-            <input
-              name="word"
-              type="text"
-              defaultValue={entry.word}
-              aria-label={`${deck.language1} word`}
-            />
-            <input
-              name="translation"
-              type="text"
-              defaultValue={entry.translation}
-              aria-label={`${deck.language2} translation`}
-            />
-            <SubmitButton>Save</SubmitButton>
-          </form>
-          <form action={deleteEntry}>
-            <input type="hidden" name="deckId" value={deckId} />
-            <input type="hidden" name="entryId" value={entry.id} />
-            <SubmitButton className="danger">Delete</SubmitButton>
-          </form>
+      {/* The list is its own element so the sticky link inside it cannot float
+          anywhere else: it appears once the words are on screen, which is when
+          the controls above have scrolled away. */}
+      <div className="words">
+        <div className="row head">
+          <span>{deck.language1}</span>
+          <span>{deck.language2}</span>
         </div>
-      ))}
+        {entries.map((entry) => (
+          <div className="row" key={entry.id}>
+            <form
+              action={updateEntry}
+              id={`edit-${entry.id}`}
+              style={{ display: "contents" }}
+            >
+              <input type="hidden" name="deckId" value={deckId} />
+              <input type="hidden" name="entryId" value={entry.id} />
+              <input
+                name="word"
+                type="text"
+                defaultValue={entry.word}
+                aria-label={`${deck.language1} word`}
+              />
+              <input
+                name="translation"
+                type="text"
+                defaultValue={entry.translation}
+                aria-label={`${deck.language2} translation`}
+              />
+              <SubmitButton>Save</SubmitButton>
+            </form>
+            <form action={deleteEntry}>
+              <input type="hidden" name="deckId" value={deckId} />
+              <input type="hidden" name="entryId" value={entry.id} />
+              <SubmitButton className="danger">Delete</SubmitButton>
+            </form>
+          </div>
+        ))}
+        {entries.length > 0 && (
+          <div className="to-top">
+            <a href="#top">↑ Back to top</a>
+          </div>
+        )}
+      </div>
       {entries.length === 0 && (
         <p className="hint">
           No words yet. Add one or paste a list with the boxes above.
