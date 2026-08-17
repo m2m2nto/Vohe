@@ -10,7 +10,8 @@ Claude chat windows on the subscriptions you already pay for.
 ## The round trip
 
 1. **Download** the dictionary from its page in the editor (`download .txt`).
-2. **Generate** candidates in ChatGPT, attaching that file (prompt 1).
+2. **Generate** candidates in ChatGPT, pasting that file's contents into the
+   chat (prompt 1).
 3. **Verify** them in Claude, pasting the candidates (prompt 2).
 4. **Paste** Claude's final block into **Paste a list for review**.
 5. **Approve** in the review queue — tick what you want, one version bump.
@@ -29,11 +30,16 @@ survives both models is worth your review time in a way raw output is not.
 
 ## Prompt 1 — generate (ChatGPT)
 
-Attach the exported `.txt`, then:
+Paste the exported `.txt` into the chat rather than attaching it. A few hundred
+lines fit comfortably, and an attached file is often read through a
+file-analysis tool that skims it — which is how a list comes back with half its
+words already in the dictionary.
 
 ```text
-Attached is a {LANGUAGE1}–{LANGUAGE2} vocabulary list used for flashcards.
+Here is my {LANGUAGE1}–{LANGUAGE2} vocabulary list for flashcards.
 Each line is "{LANGUAGE1} word - {LANGUAGE2} translation".
+
+<paste the exported .txt here>
 
 Propose {N} NEW pairs to add to it.
 
@@ -54,8 +60,17 @@ No numbering, no headers, no commentary, no code fence.
 ```
 
 Ask for 100–150 at a time. Past that, quality falls off and the tail fills with
-obscure words — run the prompt again for the next batch instead, attaching the
+obscure words — run the prompt again for the next batch instead, pasting the
 freshly exported file so the model sees what you have already taken.
+
+Three things to reach for when the plain prompt disappoints:
+
+- the frequency tail runs dry → add *"restricted to the kitchen, cooking and
+  food"*, or whatever else you are short of;
+- the words come back too hard or too easy → add *"at roughly A2–B1"*;
+- the verbs come back in mixed aspect → add *"For verbs, give the imperfective
+  unless the perfective is the more common everyday form, and never both
+  members of an aspect pair."*
 
 ## Prompt 2 — verify (Claude)
 
