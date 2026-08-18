@@ -80,7 +80,7 @@ private struct TimingRow: View {
     }
 
     private static func seconds(_ value: Double) -> String {
-        String(format: "%.1fs", value)
+        String(format: "%.2fs", value)
     }
 }
 
