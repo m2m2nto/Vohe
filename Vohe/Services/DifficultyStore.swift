@@ -3,6 +3,41 @@ import Foundation
 struct CardStats: Codable {
     var seen: Int
     var wrong: Int
+    /// Timed samples. Only a Good grade is sampled, so the averages describe
+    /// recall the user actually got right.
+    var timed: Int = 0
+    /// Seconds from the card appearing to its reveal, summed over `timed`.
+    var flipSeconds: Double = 0
+    /// Seconds from the reveal to the swipe, summed over `timed`.
+    var swipeSeconds: Double = 0
+
+    init(seen: Int, wrong: Int) {
+        self.seen = seen
+        self.wrong = wrong
+    }
+
+    /// `difficulty.json` predates the timing fields, so a file written by an
+    /// earlier build decodes with no samples rather than failing outright.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        seen = try c.decode(Int.self, forKey: .seen)
+        wrong = try c.decode(Int.self, forKey: .wrong)
+        timed = try c.decodeIfPresent(Int.self, forKey: .timed) ?? 0
+        flipSeconds = try c.decodeIfPresent(Double.self, forKey: .flipSeconds) ?? 0
+        swipeSeconds = try c.decodeIfPresent(Double.self, forKey: .swipeSeconds) ?? 0
+    }
+}
+
+/// One card's reaction times, as the metrics screen lists them.
+struct CardTiming: Identifiable {
+    let deckName: String
+    let front: String
+    let back: String
+    let times: Int
+    let averageFlipSeconds: Double
+    let averageSwipeSeconds: Double
+
+    var id: String { DifficultyStore.key(deckName: deckName, front: front, back: back) }
 }
 
 final class DifficultyStore {
@@ -31,11 +66,26 @@ final class DifficultyStore {
         return try? JSONDecoder().decode([String: CardStats].self, from: data)
     }
 
-    func recordAnswer(deckName: String, front: String, back: String, wasCorrect: Bool) {
+    /// Records one grade. `secondsToFlip` / `secondsToSwipe` are supplied only
+    /// when the session could time the answer end to end; without both, the
+    /// grade still counts towards `seen` and `wrong` but not the averages.
+    func recordAnswer(
+        deckName: String,
+        front: String,
+        back: String,
+        wasCorrect: Bool,
+        secondsToFlip: Double? = nil,
+        secondsToSwipe: Double? = nil
+    ) {
         let k = Self.key(deckName: deckName, front: front, back: back)
         var s = cache[k] ?? CardStats(seen: 0, wrong: 0)
         s.seen += 1
         if !wasCorrect { s.wrong += 1 }
+        if let secondsToFlip, let secondsToSwipe {
+            s.timed += 1
+            s.flipSeconds += secondsToFlip
+            s.swipeSeconds += secondsToSwipe
+        }
         cache[k] = s
         persist()
     }
@@ -84,6 +134,25 @@ final class DifficultyStore {
     /// so a zero count means the session would be empty.
     func hardestCount(deckName: String, fronts: [(front: String, back: String)]) -> Int {
         fronts.filter { (difficultyScore(deckName: deckName, front: $0.front, back: $0.back) ?? 0) > 0 }.count
+    }
+
+    /// Every card carrying at least one timed sample, across all decks. Keys
+    /// outlive the cards they came from (a deleted deck leaves its stats
+    /// behind), so this lists what was measured, not what still exists.
+    func timedCards() -> [CardTiming] {
+        cache.compactMap { key, stats in
+            guard stats.timed > 0 else { return nil }
+            let parts = key.components(separatedBy: "\u{1F}")
+            guard parts.count == 3 else { return nil }
+            return CardTiming(
+                deckName: parts[0],
+                front: parts[1],
+                back: parts[2],
+                times: stats.timed,
+                averageFlipSeconds: stats.flipSeconds / Double(stats.timed),
+                averageSwipeSeconds: stats.swipeSeconds / Double(stats.timed)
+            )
+        }
     }
 
     private func persist() {

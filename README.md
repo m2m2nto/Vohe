@@ -120,7 +120,7 @@ Vohe/
   Views/                 LibraryView, DeckDetailView, CardsListView, CardEditorSheet,
                          SessionView, ResultsView, SessionDetailView (+ WrongCardsView),
                          MinuteIntervalDatePicker, RemoteDictionariesView,
-                         BackendSettingsSheet
+                         BackendSettingsSheet, ReactionTimesView
 VoheTests/               unit tests for the scheduler, the backfill, dictionary sync
 samples/                 example vocabulary files
 web/                     optional web editor for decks (Next.js on Vercel) — see web/README.md

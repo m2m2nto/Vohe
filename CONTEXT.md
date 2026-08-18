@@ -167,6 +167,13 @@ _Avoid_: "difficulty score" (use Wrong-rate; "difficulty score" is the same valu
 **Rankable**:
 A Card with enough samples for its Wrong-rate to be defined — i.e. `seen ≥ 3` (`DifficultyStore.minSeenForRanking`). Necessary but not sufficient for Practice Hardest, which also requires Wrong-rate > 0.
 
+**Timed sample**:
+The pair of durations one Good Grade contributes to a Card's Stats: **Time to flip** (Card appearing → tap that reveals it) and **Time to swipe** (that reveal → the swipe). Again Grades are never sampled, only the first reveal of a Card starts the swipe clock, and a half longer than 60s is dropped rather than recorded — a Card left on screen while the app is backgrounded is not a reaction. Sampled alongside `seen`/`wrong` in `DifficultyStore`, under the same key, so a Card edit or Deck rename carries the samples along.
+_Avoid_: "response time", "latency".
+
+**Reaction Times**:
+The Library screen listing every Card with at least one Timed sample: its average Time to flip, its average Time to swipe, and how many samples back them. Read-only — it reports the numbers so a "learned" threshold can be chosen from them; nothing in a Session behaves differently because of it.
+
 **Wrong-last-session**:
 A per-Card sticky flag (`Card.wrongLastSession`) that is set to `true` on every Again Grade and `false` on every Good Grade. Cards never touched in any Session retain the default `false`. Surfaced by `DeckDetailView`'s "Wrong last session" row and the `WrongCardsView` list. Independent of Box state — a Card can be in Box 5 *and* have `wrongLastSession == true` if its most recent Grade was Again. The name is slightly misleading: the value reflects "the most recent Grade was Again," not "Again in the last completed Session."
 _Avoid_: treating this as a session-scoped flag — it is per-Card.

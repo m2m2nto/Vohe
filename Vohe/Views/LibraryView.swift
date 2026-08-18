@@ -100,6 +100,13 @@ struct LibraryView: View {
                                 .onDelete(perform: deleteDecks)
                             }
                         }
+                        Section {
+                            NavigationLink {
+                                ReactionTimesView()
+                            } label: {
+                                Label("Reaction times", systemImage: "stopwatch")
+                            }
+                        }
                     }
                 }
             }

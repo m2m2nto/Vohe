@@ -43,6 +43,55 @@ final class DifficultyStoreTests: XCTestCase {
         )
     }
 
+    /// Timings are averaged over the samples that carried them, and a grade
+    /// recorded without timings leaves the averages alone.
+    func testTimingsAverageOverSampledAnswers() {
+        cards.append(("timed", "t"))
+        DifficultyStore.shared.recordAnswer(
+            deckName: deckName, front: "timed", back: "t", wasCorrect: true,
+            secondsToFlip: 2, secondsToSwipe: 1
+        )
+        DifficultyStore.shared.recordAnswer(
+            deckName: deckName, front: "timed", back: "t", wasCorrect: true,
+            secondsToFlip: 4, secondsToSwipe: 3
+        )
+        DifficultyStore.shared.recordAnswer(
+            deckName: deckName, front: "timed", back: "t", wasCorrect: false
+        )
+
+        let stats = DifficultyStore.shared.stats(deckName: deckName, front: "timed", back: "t")
+        XCTAssertEqual(stats?.seen, 3)
+        XCTAssertEqual(stats?.timed, 2)
+        XCTAssertEqual(stats?.flipSeconds ?? 0, 6, accuracy: 0.001)
+        XCTAssertEqual(stats?.swipeSeconds ?? 0, 4, accuracy: 0.001)
+
+        let timing = DifficultyStore.shared.timedCards().first { $0.deckName == deckName }
+        XCTAssertEqual(timing?.front, "timed")
+        XCTAssertEqual(timing?.times, 2)
+        XCTAssertEqual(timing?.averageFlipSeconds ?? 0, 3, accuracy: 0.001)
+        XCTAssertEqual(timing?.averageSwipeSeconds ?? 0, 2, accuracy: 0.001)
+    }
+
+    /// A card graded but never timed stays out of the metrics list.
+    func testUntimedCardsAreNotListed() {
+        record(front: "untimed", back: "u", seen: 3, wrong: 1)
+
+        XCTAssertTrue(DifficultyStore.shared.timedCards().allSatisfy { $0.deckName != deckName })
+    }
+
+    /// `difficulty.json` written before timings existed must still decode.
+    func testLegacyStatsDecodeWithoutTimings() throws {
+        let data = Data(#"{"seen":4,"wrong":1}"#.utf8)
+
+        let stats = try JSONDecoder().decode(CardStats.self, from: data)
+
+        XCTAssertEqual(stats.seen, 4)
+        XCTAssertEqual(stats.wrong, 1)
+        XCTAssertEqual(stats.timed, 0)
+        XCTAssertEqual(stats.flipSeconds, 0)
+        XCTAssertEqual(stats.swipeSeconds, 0)
+    }
+
     /// The gate must agree with `SessionView.buildOrder`'s `onlyHardest` filter:
     /// a zero count means the session would open with no cards.
     func testHardestCountMatchesSessionFilter() {

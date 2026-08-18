@@ -54,6 +54,10 @@ struct SessionView: View {
     @State private var wrongIDs: [UUID] = []
     @State private var startedAt: Date = .now
     @State private var isFlipped = false
+    /// When the card on screen appeared, and when it was first revealed.
+    /// Together they time one answer; `flippedAt` stays nil until the reveal.
+    @State private var shownAt: Date = .now
+    @State private var flippedAt: Date?
     @State private var isTransitioning = false
     @State private var dragOffset: CGSize = .zero
     @State private var showResults = false
@@ -64,6 +68,9 @@ struct SessionView: View {
     @State private var fileError: String?
 
     private static let reinforcementCap = 2
+    /// A card left on screen while the app sits in the background would land a
+    /// multi-minute sample; past this, the reading isn't a reaction time.
+    private static let maxSampleSeconds: TimeInterval = 60
 
     var body: some View {
         VStack(spacing: 24) {
@@ -126,6 +133,9 @@ struct SessionView: View {
                 feedbackBadge(text: "CORRECT", color: .green, visible: dragOffset.width > 20)
             }
             .onTapGesture {
+                // Only the first reveal is timed; flipping back and forth after
+                // that doesn't restart the clock.
+                if !isFlipped, flippedAt == nil { flippedAt = .now }
                 withAnimation(.spring(duration: 0.35)) {
                     isFlipped.toggle()
                 }
@@ -214,6 +224,7 @@ struct SessionView: View {
 
     private func buildOrder() {
         guard order.isEmpty else { return }
+        shownAt = .now
         if let paused = resume, let deck = deck {
             var byID: [UUID: Card] = [:]
             for card in deck.cards { byID[card.id] = card }
@@ -281,11 +292,14 @@ struct SessionView: View {
         } else if !wrongIDs.contains(card.id) {
             wrongIDs.append(card.id)
         }
+        let timing = wasCorrect ? answerTiming(swipedAt: .now) : nil
         DifficultyStore.shared.recordAnswer(
             deckName: card.deck?.name ?? "",
             front: card.front,
             back: card.back,
-            wasCorrect: wasCorrect
+            wasCorrect: wasCorrect,
+            secondsToFlip: timing?.flip,
+            secondsToSwipe: timing?.swipe
         )
         try? context.save()
 
@@ -304,6 +318,7 @@ struct SessionView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             dragOffset = .zero
             isFlipped = false
+            flippedAt = nil
             isTransitioning = false
             if index + 1 >= order.count {
                 if !isGlobal {
@@ -324,8 +339,21 @@ struct SessionView: View {
                 showResults = true
             } else {
                 index += 1
+                shownAt = .now
             }
         }
+    }
+
+    /// The two halves of one answer: how long the card sat unrevealed, and how
+    /// long the decision took once revealed. Nil when the card was never
+    /// revealed, or when either half is too long to read as a reaction.
+    private func answerTiming(swipedAt: Date) -> (flip: TimeInterval, swipe: TimeInterval)? {
+        guard let flippedAt else { return nil }
+        let flip = flippedAt.timeIntervalSince(shownAt)
+        let swipe = swipedAt.timeIntervalSince(flippedAt)
+        guard flip >= 0, swipe >= 0,
+              flip <= Self.maxSampleSeconds, swipe <= Self.maxSampleSeconds else { return nil }
+        return (flip, swipe)
     }
 
     private func pauseAndExit() {
