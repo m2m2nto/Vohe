@@ -29,7 +29,7 @@ struct ReactionTimesView: View {
                 ContentUnavailableView(
                     "No Timings Yet",
                     systemImage: "stopwatch",
-                    description: Text("A card is timed when you swipe it right. Finish a session and its cards show up here.")
+                    description: Text("A card is timed the first time it comes up in a session and you swipe it right. Finish a session and its cards show up here.")
                 )
             } else {
                 List {
@@ -41,7 +41,7 @@ struct ReactionTimesView: View {
                         }
                         .pickerStyle(.segmented)
                     } footer: {
-                        Text("Flip is how long the card sat before you revealed it; swipe is how long the call took after. Fastest first.")
+                        Text("Flip is how long the card sat before you revealed it; swipe is how long the call took after. Only each session's first showing of a card counts. Fastest first.")
                     }
                     Section("\(timings.count) cards") {
                         ForEach(sorted) { timing in

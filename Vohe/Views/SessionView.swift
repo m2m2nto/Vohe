@@ -272,6 +272,10 @@ struct SessionView: View {
         guard !isTransitioning else { return }
         isTransitioning = true
         let card = order[index]
+        // Reinforcement puts an Again card back in the order, and by the time it
+        // comes round again the answer has just been read. Only a card's first
+        // showing is a genuine recall, so only that one is timed.
+        let isFirstShowing = !gradedThisSession.contains(card.id)
         card.wrongLastSession = !wasCorrect
 
         // Box/due is written exactly once per card per session — on the first grade.
@@ -292,7 +296,7 @@ struct SessionView: View {
         } else if !wrongIDs.contains(card.id) {
             wrongIDs.append(card.id)
         }
-        let timing = wasCorrect ? answerTiming(swipedAt: .now) : nil
+        let timing = wasCorrect && isFirstShowing ? answerTiming(swipedAt: .now) : nil
         DifficultyStore.shared.recordAnswer(
             deckName: card.deck?.name ?? "",
             front: card.front,

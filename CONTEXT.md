@@ -168,7 +168,7 @@ _Avoid_: "difficulty score" (use Wrong-rate; "difficulty score" is the same valu
 A Card with enough samples for its Wrong-rate to be defined — i.e. `seen ≥ 3` (`DifficultyStore.minSeenForRanking`). Necessary but not sufficient for Practice Hardest, which also requires Wrong-rate > 0.
 
 **Timed sample**:
-The pair of durations one Good Grade contributes to a Card's Stats: **Time to flip** (Card appearing → tap that reveals it) and **Time to swipe** (that reveal → the swipe). Again Grades are never sampled, only the first reveal of a Card starts the swipe clock, and a half longer than 60s is dropped rather than recorded — a Card left on screen while the app is backgrounded is not a reaction. Sampled alongside `seen`/`wrong` in `DifficultyStore`, under the same key, so a Card edit or Deck rename carries the samples along.
+The pair of durations one Good Grade contributes to a Card's Stats: **Time to flip** (Card appearing → tap that reveals it) and **Time to swipe** (that reveal → the swipe). Only a Card's **first showing in a Session** is sampled: Again Grades never are, and neither are the Reinforcement repeats that follow one, because by the time a re-queued Card comes round its answer has just been read. Only the first reveal of a showing starts the swipe clock, and a half longer than 60s is dropped rather than recorded — a Card left on screen while the app is backgrounded is not a reaction. Sampled alongside `seen`/`wrong` in `DifficultyStore`, under the same key, so a Card edit or Deck rename carries the samples along.
 _Avoid_: "response time", "latency".
 
 **Reaction Times**:
