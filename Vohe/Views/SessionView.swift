@@ -9,6 +9,7 @@ struct SessionView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var allPaused: [PausedSession]
     let mode: Mode
     let inverted: Bool
@@ -58,6 +59,10 @@ struct SessionView: View {
     /// Together they time one answer; `flippedAt` stays nil until the reveal.
     @State private var shownAt: Date = .now
     @State private var flippedAt: Date?
+    /// Set when something that isn't recall eats into the clocks — the editor
+    /// sheet, or the app leaving the foreground. The showing still grades and
+    /// still counts towards `seen`; it just doesn't become a timed sample.
+    @State private var sampleVoided = false
     @State private var isTransitioning = false
     @State private var dragOffset: CGSize = .zero
     @State private var showResults = false
@@ -68,9 +73,6 @@ struct SessionView: View {
     @State private var fileError: String?
 
     private static let reinforcementCap = 2
-    /// A card left on screen while the app sits in the background would land a
-    /// multi-minute sample; past this, the reading isn't a reaction time.
-    private static let maxSampleSeconds: TimeInterval = 60
 
     var body: some View {
         VStack(spacing: 24) {
@@ -83,6 +85,9 @@ struct SessionView: View {
         .padding(20)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear(perform: buildOrder)
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { sampleVoided = true }
+        }
         .confirmationDialog("Exit session?", isPresented: $showExitDialog, titleVisibility: .visible) {
             if !isGlobal && canPause {
                 Button("Pause") { pauseAndExit() }
@@ -171,6 +176,7 @@ struct SessionView: View {
                 .foregroundStyle(.green)
             Button {
                 guard index < order.count else { return }
+                sampleVoided = true
                 editingCard = order[index]
             } label: {
                 Image(systemName: "pencil")
@@ -301,7 +307,9 @@ struct SessionView: View {
             front: card.front,
             back: card.back,
             wasCorrect: wasCorrect,
-            timing: wasCorrect && isFirstShowing ? answerTiming(swipedAt: .now) : nil
+            timing: wasCorrect && isFirstShowing && !sampleVoided
+                ? ReactionSample.from(shownAt: shownAt, flippedAt: flippedAt, swipedAt: .now)
+                : nil
         )
         try? context.save()
 
@@ -321,6 +329,7 @@ struct SessionView: View {
             dragOffset = .zero
             isFlipped = false
             flippedAt = nil
+            sampleVoided = false
             isTransitioning = false
             if index + 1 >= order.count {
                 if !isGlobal {
@@ -344,18 +353,6 @@ struct SessionView: View {
                 shownAt = .now
             }
         }
-    }
-
-    /// The two halves of one answer: how long the card sat unrevealed, and how
-    /// long the decision took once revealed. Nil when the card was never
-    /// revealed, or when either half is too long to read as a reaction.
-    private func answerTiming(swipedAt: Date) -> (flip: TimeInterval, swipe: TimeInterval)? {
-        guard let flippedAt else { return nil }
-        let flip = flippedAt.timeIntervalSince(shownAt)
-        let swipe = swipedAt.timeIntervalSince(flippedAt)
-        let plausible = 0...Self.maxSampleSeconds
-        guard plausible.contains(flip), plausible.contains(swipe) else { return nil }
-        return (flip, swipe)
     }
 
     private func pauseAndExit() {

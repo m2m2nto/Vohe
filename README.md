@@ -116,7 +116,8 @@ Vohe/
   Models/                SwiftData @Model types (Deck, Card, SessionResult, PausedSession)
   Services/              DeckParser, DeckFileStore, DifficultyStore, LeitnerScheduler,
                          SchedulerMigration, ReminderScheduler, NotificationRouter,
-                         Translator, BackendSettings, BackendClient, DictionarySync
+                         Translator, BackendSettings, BackendClient, DictionarySync,
+                         ReactionSample
   Views/                 LibraryView, DeckDetailView, CardsListView, CardEditorSheet,
                          SessionView, ResultsView, SessionDetailView (+ WrongCardsView),
                          MinuteIntervalDatePicker, RemoteDictionariesView,
