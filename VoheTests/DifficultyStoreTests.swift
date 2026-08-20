@@ -30,6 +30,15 @@ final class DifficultyStoreTests: XCTestCase {
         }
     }
 
+    /// The key format outlives any single build: change it and every stat
+    /// already in `difficulty.json` is orphaned rather than read.
+    func testKeyFormatIsStable() {
+        XCTAssertEqual(
+            DifficultyStore.key(deckName: "Deck", front: "f", back: "b"),
+            "Deck\u{1F}f\u{1F}b"
+        )
+    }
+
     /// Practice Hardest drills a card only when it is rankable AND has been missed.
     func testHardestCountOnlyCountsRankableMissedCards() {
         record(front: "tooFew", back: "a", seen: 2, wrong: 2)       // below minSeenForRanking

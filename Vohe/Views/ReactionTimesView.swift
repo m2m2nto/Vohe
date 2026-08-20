@@ -10,6 +10,14 @@ struct ReactionTimesView: View {
         case times = "Times"
 
         var id: String { rawValue }
+
+        /// What this sort puts at the top, named for the footer.
+        var orderNote: String {
+            switch self {
+            case .swipe, .flip: return "Fastest first."
+            case .times: return "Most times first."
+            }
+        }
     }
 
     @State private var timings: [CardTiming] = []
@@ -41,7 +49,7 @@ struct ReactionTimesView: View {
                         }
                         .pickerStyle(.segmented)
                     } footer: {
-                        Text("Flip is how long the card sat before you revealed it; swipe is how long the call took after. Only each session's first showing of a card counts. Fastest first.")
+                        Text("Flip is how long the card sat before you revealed it; swipe is how long the call took after. Only each session's first showing of a card counts. \(sort.orderNote)")
                     }
                     Section("\(timings.count) cards") {
                         ForEach(sorted) { timing in

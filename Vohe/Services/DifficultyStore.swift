@@ -42,6 +42,9 @@ final class DifficultyStore {
 
     static let minSeenForRanking = 3
     static let fileName = "difficulty.json"
+    /// Joins the three parts of a cache key. Unit Separator — an ASCII control
+    /// character no deck name or card text carries, so no key is ambiguous.
+    private static let separator = "\u{1F}"
 
     private var cache: [String: CardStats]
 
@@ -55,7 +58,7 @@ final class DifficultyStore {
     }
 
     static func key(deckName: String, front: String, back: String) -> String {
-        "\(deckName)\u{1F}\(front)\u{1F}\(back)"
+        "\(deckName)\(separator)\(front)\(separator)\(back)"
     }
 
     private static func load(from url: URL) -> [String: CardStats]? {
@@ -107,13 +110,13 @@ final class DifficultyStore {
     /// Migrates every card stat from `oldName` to `newName` after a deck rename.
     func renameDeck(from oldName: String, to newName: String) {
         guard oldName != newName else { return }
-        let prefix = "\(oldName)\u{1F}"
+        let prefix = "\(oldName)\(Self.separator)"
         let staleKeys = cache.keys.filter { $0.hasPrefix(prefix) }
         guard !staleKeys.isEmpty else { return }
         for key in staleKeys {
             guard let stats = cache.removeValue(forKey: key) else { continue }
             let suffix = key.dropFirst(prefix.count)
-            cache["\(newName)\u{1F}\(suffix)"] = stats
+            cache["\(newName)\(Self.separator)\(suffix)"] = stats
         }
         persist()
     }
@@ -138,7 +141,7 @@ final class DifficultyStore {
     func timedCards() -> [CardTiming] {
         cache.compactMap { key, stats in
             guard stats.timed > 0 else { return nil }
-            let parts = key.components(separatedBy: "\u{1F}")
+            let parts = key.components(separatedBy: Self.separator)
             guard parts.count == 3 else { return nil }
             return CardTiming(
                 deckName: parts[0],
