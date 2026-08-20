@@ -77,8 +77,11 @@ private struct TimingRow: View {
                 Text(timing.deckName)
                 Spacer()
                 Label(Self.seconds(timing.averageFlipSeconds), systemImage: "arrow.2.squarepath")
+                    .accessibilityLabel("Time to flip, \(Self.seconds(timing.averageFlipSeconds))")
                 Label(Self.seconds(timing.averageSwipeSeconds), systemImage: "hand.draw")
+                    .accessibilityLabel("Time to swipe, \(Self.seconds(timing.averageSwipeSeconds))")
                 Text("×\(timing.times)")
+                    .accessibilityLabel("\(timing.times) samples")
             }
             .labelStyle(TightLabelStyle())
             .font(.caption)
