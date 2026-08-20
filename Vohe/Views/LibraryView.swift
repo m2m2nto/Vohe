@@ -241,6 +241,7 @@ struct LibraryView: View {
         for idx in offsets {
             let deck = decks[idx]
             DeckFileStore.remove(deck)
+            DifficultyStore.shared.removeDeck(named: deck.name)
             context.delete(deck)
         }
     }

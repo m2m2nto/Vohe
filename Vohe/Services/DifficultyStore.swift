@@ -121,6 +121,17 @@ final class DifficultyStore {
         persist()
     }
 
+    /// Drops every card stat for a deleted deck. Card deletion already clears
+    /// its own stats and a rename carries them over, so a deck delete leaving
+    /// them behind was the one path that orphaned keys nothing could reach.
+    func removeDeck(named name: String) {
+        let prefix = "\(name)\(Self.separator)"
+        let keys = cache.keys.filter { $0.hasPrefix(prefix) }
+        guard !keys.isEmpty else { return }
+        for key in keys { cache.removeValue(forKey: key) }
+        persist()
+    }
+
     /// Returns wrong-rate when the card has been seen enough times; nil otherwise.
     func difficultyScore(deckName: String, front: String, back: String) -> Double? {
         guard let s = stats(deckName: deckName, front: front, back: back),
@@ -135,9 +146,9 @@ final class DifficultyStore {
         fronts.filter { (difficultyScore(deckName: deckName, front: $0.front, back: $0.back) ?? 0) > 0 }.count
     }
 
-    /// Every card carrying at least one timed sample, across all decks. Keys
-    /// outlive the cards they came from (a deleted deck leaves its stats
-    /// behind), so this lists what was measured, not what still exists.
+    /// Every card carrying at least one timed sample, across all decks.
+    /// Deleting a card or its deck clears the samples too, so this lists
+    /// cards that still exist.
     func timedCards() -> [CardTiming] {
         cache.compactMap { key, stats in
             guard stats.timed > 0 else { return nil }

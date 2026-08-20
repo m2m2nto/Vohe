@@ -81,6 +81,22 @@ final class DifficultyStoreTests: XCTestCase {
         XCTAssertEqual(timing?.averageSwipeSeconds ?? 0, 2, accuracy: 0.001)
     }
 
+    /// Deleting a deck takes its stats with it, and leaves every other deck's
+    /// alone — the prefix match must not reach a deck that merely starts the same.
+    func testDeletingADeckRemovesOnlyItsOwnStats() {
+        record(front: "gone", back: "g", seen: 3, wrong: 1)
+        let neighbour = deckName + " Advanced"
+        DifficultyStore.shared.recordAnswer(
+            deckName: neighbour, front: "kept", back: "k", wasCorrect: true
+        )
+        defer { DifficultyStore.shared.remove(deckName: neighbour, front: "kept", back: "k") }
+
+        DifficultyStore.shared.removeDeck(named: deckName)
+
+        XCTAssertNil(DifficultyStore.shared.stats(deckName: deckName, front: "gone", back: "g"))
+        XCTAssertNotNil(DifficultyStore.shared.stats(deckName: neighbour, front: "kept", back: "k"))
+    }
+
     /// A card graded but never timed stays out of the metrics list.
     func testUntimedCardsAreNotListed() {
         record(front: "untimed", back: "u", seen: 3, wrong: 1)
