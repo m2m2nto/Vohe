@@ -54,6 +54,55 @@ final class DeckDeletionTests: XCTestCase {
         XCTAssertEqual(survivor.cards.count, 1, "the other deck keeps everything it had")
     }
 
+    /// A deck deleted while nothing else answers to its name takes its mirror
+    /// file and its card stats with it.
+    func testDeletingASoleDeckDropsItsFileAndStats() throws {
+        let name = "DeckDeletionTests-\(UUID().uuidString)"
+        let deck = makeDeck(name: name)
+        try context.save()
+        try DeckFileStore.write(deck)
+        DifficultyStore.shared.recordAnswer(
+            deckName: name, front: "pas", back: "cane", wasCorrect: false
+        )
+
+        DeckDeletion.delete([deck], in: context)
+        try context.save()
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: DeckFileStore.url(forDeckNamed: name).path))
+        XCTAssertNil(DifficultyStore.shared.stats(deckName: name, front: "pas", back: "cane"))
+    }
+
+    /// Import allows two decks to share a name, and the mirror file and stats
+    /// are keyed by name alone — so deleting one must leave the other's history.
+    func testDeletingOneOfTwoSameNamedDecksKeepsTheSharedFileAndStats() throws {
+        let name = "DeckDeletionTests-\(UUID().uuidString)"
+        let deck = makeDeck(name: name)
+        let twin = makeDeck(name: name)
+        try context.save()
+        try DeckFileStore.write(deck)
+        DifficultyStore.shared.recordAnswer(
+            deckName: name, front: "pas", back: "cane", wasCorrect: false
+        )
+        defer {
+            DeckFileStore.remove(deckNamed: name)
+            DifficultyStore.shared.removeDeck(named: name)
+        }
+
+        DeckDeletion.delete([deck], in: context)
+        try context.save()
+
+        XCTAssertEqual(try count(Deck.self), 1, "only the deleted deck goes")
+        XCTAssertEqual(twin.cards.count, 1)
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: DeckFileStore.url(forDeckNamed: name).path),
+            "the surviving twin still needs the mirror file"
+        )
+        XCTAssertNotNil(
+            DifficultyStore.shared.stats(deckName: name, front: "pas", back: "cane"),
+            "the surviving twin still needs its practice history"
+        )
+    }
+
     func testRemoveDeletesOnlyThatDecksMirrorFile() throws {
         let deck = makeDeck(name: "Croatian-Italian")
         let survivor = makeDeck(name: "Spanish-Italian")

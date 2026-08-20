@@ -238,12 +238,7 @@ struct LibraryView: View {
     }
 
     private func deleteDecks(at offsets: IndexSet) {
-        for idx in offsets {
-            let deck = decks[idx]
-            DeckFileStore.remove(deck)
-            DifficultyStore.shared.removeDeck(named: deck.name)
-            context.delete(deck)
-        }
+        DeckDeletion.delete(offsets.map { decks[$0] }, in: context)
     }
 
     private func deletePaused(at offsets: IndexSet) {

@@ -245,8 +245,7 @@ struct DeckDetailView: View {
     /// that no longer exists.
     private func deleteDeck() {
         dismiss()
-        DeckFileStore.remove(deck)
-        context.delete(deck)
+        DeckDeletion.delete([deck], in: context)
     }
 
     /// Everything the shared dictionary adds to a deck: where its words came
