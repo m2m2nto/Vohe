@@ -10,14 +10,11 @@ struct CardStats: Codable {
     var flipSeconds: Double = 0
     /// Seconds from the reveal to the swipe, summed over `timed`.
     var swipeSeconds: Double = 0
+}
 
-    init(seen: Int, wrong: Int) {
-        self.seen = seen
-        self.wrong = wrong
-    }
-
-    /// `difficulty.json` predates the timing fields, so a file written by an
-    /// earlier build decodes with no samples rather than failing outright.
+/// `difficulty.json` predates the timing fields, so a file written by an
+/// earlier build decodes with no samples rather than failing outright.
+extension CardStats {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         seen = try c.decode(Int.self, forKey: .seen)
@@ -66,25 +63,24 @@ final class DifficultyStore {
         return try? JSONDecoder().decode([String: CardStats].self, from: data)
     }
 
-    /// Records one grade. `secondsToFlip` / `secondsToSwipe` are supplied only
-    /// when the session could time the answer end to end; without both, the
-    /// grade still counts towards `seen` and `wrong` but not the averages.
+    /// Records one grade. `timing` is supplied only when the session could time
+    /// the answer end to end; without it the grade still counts towards `seen`
+    /// and `wrong` but not the averages.
     func recordAnswer(
         deckName: String,
         front: String,
         back: String,
         wasCorrect: Bool,
-        secondsToFlip: Double? = nil,
-        secondsToSwipe: Double? = nil
+        timing: (flip: TimeInterval, swipe: TimeInterval)? = nil
     ) {
         let k = Self.key(deckName: deckName, front: front, back: back)
         var s = cache[k] ?? CardStats(seen: 0, wrong: 0)
         s.seen += 1
         if !wasCorrect { s.wrong += 1 }
-        if let secondsToFlip, let secondsToSwipe {
+        if let timing {
             s.timed += 1
-            s.flipSeconds += secondsToFlip
-            s.swipeSeconds += secondsToSwipe
+            s.flipSeconds += timing.flip
+            s.swipeSeconds += timing.swipe
         }
         cache[k] = s
         persist()

@@ -135,7 +135,7 @@ struct SessionView: View {
             .onTapGesture {
                 // Only the first reveal is timed; flipping back and forth after
                 // that doesn't restart the clock.
-                if !isFlipped, flippedAt == nil { flippedAt = .now }
+                if flippedAt == nil { flippedAt = .now }
                 withAnimation(.spring(duration: 0.35)) {
                     isFlipped.toggle()
                 }
@@ -274,13 +274,13 @@ struct SessionView: View {
         let card = order[index]
         // Reinforcement puts an Again card back in the order, and by the time it
         // comes round again the answer has just been read. Only a card's first
-        // showing is a genuine recall, so only that one is timed.
+        // showing is a genuine recall, so only that one is scheduled and timed.
         let isFirstShowing = !gradedThisSession.contains(card.id)
         card.wrongLastSession = !wasCorrect
 
         // Box/due is written exactly once per card per session — on the first grade.
         // Re-queued cards' subsequent grades only record DifficultyStore stats.
-        if !gradedThisSession.contains(card.id) {
+        if isFirstShowing {
             let (box, due) = LeitnerScheduler.apply(
                 grade: wasCorrect ? .good : .again,
                 currentBox: card.boxIndex,
@@ -296,14 +296,12 @@ struct SessionView: View {
         } else if !wrongIDs.contains(card.id) {
             wrongIDs.append(card.id)
         }
-        let timing = wasCorrect && isFirstShowing ? answerTiming(swipedAt: .now) : nil
         DifficultyStore.shared.recordAnswer(
             deckName: card.deck?.name ?? "",
             front: card.front,
             back: card.back,
             wasCorrect: wasCorrect,
-            secondsToFlip: timing?.flip,
-            secondsToSwipe: timing?.swipe
+            timing: wasCorrect && isFirstShowing ? answerTiming(swipedAt: .now) : nil
         )
         try? context.save()
 
@@ -355,8 +353,8 @@ struct SessionView: View {
         guard let flippedAt else { return nil }
         let flip = flippedAt.timeIntervalSince(shownAt)
         let swipe = swipedAt.timeIntervalSince(flippedAt)
-        guard flip >= 0, swipe >= 0,
-              flip <= Self.maxSampleSeconds, swipe <= Self.maxSampleSeconds else { return nil }
+        let plausible = 0...Self.maxSampleSeconds
+        guard plausible.contains(flip), plausible.contains(swipe) else { return nil }
         return (flip, swipe)
     }
 

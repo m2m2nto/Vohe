@@ -49,11 +49,11 @@ final class DifficultyStoreTests: XCTestCase {
         cards.append(("timed", "t"))
         DifficultyStore.shared.recordAnswer(
             deckName: deckName, front: "timed", back: "t", wasCorrect: true,
-            secondsToFlip: 2, secondsToSwipe: 1
+            timing: (flip: 2, swipe: 1)
         )
         DifficultyStore.shared.recordAnswer(
             deckName: deckName, front: "timed", back: "t", wasCorrect: true,
-            secondsToFlip: 4, secondsToSwipe: 3
+            timing: (flip: 4, swipe: 3)
         )
         DifficultyStore.shared.recordAnswer(
             deckName: deckName, front: "timed", back: "t", wasCorrect: false
