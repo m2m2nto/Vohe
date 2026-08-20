@@ -23,7 +23,7 @@ struct ReactionTimesView: View {
     @State private var timings: [CardTiming] = []
     @State private var sort: Sort = .swipe
 
-    private var sorted: [CardTiming] {
+    private static func sorted(_ timings: [CardTiming], by sort: Sort) -> [CardTiming] {
         switch sort {
         case .swipe: return timings.sorted { $0.averageSwipeSeconds < $1.averageSwipeSeconds }
         case .flip: return timings.sorted { $0.averageFlipSeconds < $1.averageFlipSeconds }
@@ -52,7 +52,7 @@ struct ReactionTimesView: View {
                         Text("Flip is how long the card sat before you revealed it; swipe is how long the call took after. Only each session's first showing of a card counts. \(sort.orderNote)")
                     }
                     Section("\(timings.count) cards") {
-                        ForEach(sorted) { timing in
+                        ForEach(timings) { timing in
                             TimingRow(timing: timing)
                         }
                     }
@@ -61,7 +61,8 @@ struct ReactionTimesView: View {
         }
         .navigationTitle("Reaction Times")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { timings = DifficultyStore.shared.timedCards() }
+        .onAppear { timings = Self.sorted(DifficultyStore.shared.timedCards(), by: sort) }
+        .onChange(of: sort) { _, newSort in timings = Self.sorted(timings, by: newSort) }
     }
 }
 
